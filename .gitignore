@@ -5,3 +5,4 @@ coverage/
 # CMS files include AMA-copyrighted code descriptions; download them yourself (see README).
 data/
 *.zip
+.DS_Store
