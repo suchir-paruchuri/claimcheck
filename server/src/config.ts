@@ -1,7 +1,7 @@
 import 'dotenv/config';
 
 /** Flash models only, best first. Each has its own free-tier quota, so falling back also spreads the load. */
-const DEFAULT_GEMINI_MODELS = ['gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3-flash'];
+const DEFAULT_GEMINI_MODELS = ['gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-3.6-flash', 'gemini-3.5-flash'];
 
 const MODEL_ID_RE = /^[a-z0-9][a-z0-9.-]*$/i;
 

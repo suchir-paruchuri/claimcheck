@@ -17,6 +17,8 @@ import { enqueue, getAgenda, JOBS, type BillJobData, type JobName } from './queu
 
 const MAX_ATTEMPTS = 3;
 const RETRY_DELAYS_MS = [10_000, 40_000];
+// When every Gemini model is overloaded, waiting longer helps more than retrying quickly.
+const BUSY_RETRY_DELAYS_MS = [30_000, 2 * 60_000, 5 * 60_000, 10 * 60_000];
 const LETTER_VALIDATION_ATTEMPTS = 3;
 
 class PermanentError extends Error {}
@@ -45,8 +47,9 @@ function withRetries(name: JobName, handler: (billId: string, data: BillJobData)
       const message = err instanceof Error ? err.message : String(err);
       if (err instanceof AllModelsBusyError) console.error(`[${name}] every model failed:`, err.attempts);
       console.error(`[${name}] bill ${billId} attempt ${attempt} failed: ${message}`);
-      if (!isPermanent(err) && attempt < MAX_ATTEMPTS) {
-        await getAgenda().schedule<BillJobData>(new Date(Date.now() + RETRY_DELAYS_MS[attempt - 1]), name, { ...job.attrs.data, attempt: attempt + 1 });
+      const delays = err instanceof AllModelsBusyError ? BUSY_RETRY_DELAYS_MS : RETRY_DELAYS_MS.slice(0, MAX_ATTEMPTS - 1);
+      if (!isPermanent(err) && attempt <= delays.length) {
+        await getAgenda().schedule<BillJobData>(new Date(Date.now() + delays[attempt - 1]), name, { ...job.attrs.data, attempt: attempt + 1 });
         return;
       }
       if (name === JOBS.letter) await Bill.updateOne({ _id: billId }, { 'letter.status': 'failed', error: message });
@@ -243,9 +246,12 @@ export async function draftLetter(billId: string, llm: LlmProvider) {
   const findings = (bill.findings as unknown as Finding[]).filter((f) => f.category !== 'info');
   if (findings.length === 0) throw new PermanentError('There are no findings to dispute');
 
+  const descriptions = new Map(bill.lineItems.map((l) => [l.id, l.description]));
+  const withServices = findings.map((f) => ({ ...f, services: [...new Set(f.lineItemIds.map((id) => descriptions.get(id)).filter((d): d is string => !!d))] }));
+
   let feedback: string[] = [];
   for (let i = 0; i < LETTER_VALIDATION_ATTEMPTS; i++) {
-    const { data, model } = await llm.draftLetterSections(findings, feedback);
+    const { data, model } = await llm.draftLetterSections(withServices, feedback);
     const validation = validateLetterSections(data, findings);
     if (validation.ok) {
       const user = await User.findById(bill.userId).select('name');

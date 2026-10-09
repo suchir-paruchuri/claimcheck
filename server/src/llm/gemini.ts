@@ -1,10 +1,9 @@
 import { GoogleGenAI } from '@google/genai';
 import { z } from 'zod';
 import { config } from '../config';
-import type { Finding } from '../domain/types';
 import { letterSectionsJsonSchema } from '../letters/letter';
 import { ModelChain } from './modelChain';
-import { EobExtractionSchema, ExtractionSchema, type LlmProvider, type LlmResult } from './provider';
+import { EobExtractionSchema, ExtractionSchema, type LetterFinding, type LlmProvider, type LlmResult } from './provider';
 
 const EXTRACTION_PROMPT = `You are reading an itemized medical bill. Return every billed line item as JSON.
 Rules:
@@ -26,16 +25,21 @@ const LETTER_PROMPT = `Write one short, factual paragraph for each finding below
 Rules:
 - Write in the first person, as the patient ("my bill", "my insurer"). The findings are written to the patient ("you"); rephrase them.
 - Use only the facts in the finding. Do not add charges, amounts, or claims that are not there.
-- "amount" is the dollar amount in dispute, which can be less than the line's full charge. Describe it that way.
+- Name the service in parentheses after its code, using "services" (for example, "Code 93000 (electrocardiogram)").
 - Write any dollar amount exactly as it appears in the finding's amount or evidence, formatted like $1,234.56.
-- Write dates like September 14, 2026. Leave out internal details such as the flagging threshold.
-- Never mention finding IDs, line IDs, or statement IDs; refer to charges by code, date, and amount. You may cite the insurer's name and claim number.
-- For "billing_error" findings, ask for the charge to be corrected or removed.
-- For "pricing_concern" findings, ask the provider to explain how the charge was set or reduce it; do not call it an error. Round the multiple of the Medicare rate (for example, "about 9 times").
+- Write dates like September 14, 2026. Say "the Medicare rate" and "Medicare's limit", not "benchmark" or "CMS". Leave out the flagging threshold and the phrase "disputed amount".
+- Vary how paragraphs open; don't start each one with the date.
+- Never mention finding IDs, line IDs, or statement IDs. You may cite the insurer's name and claim number.
+- For "billing_error" findings, ask for the charge to be removed or corrected, naming the amount to remove.
+- For "pricing_concern" findings, give the charge and the Medicare rate, rounding the multiple ("about 9 times"), and ask the provider to explain how the charge was set or reduce it. Do not call it an error and do not state a difference to remove.
 - For "insurance_missing", ask the provider to confirm the charge was submitted to the insurer, and to submit it if not, before billing the patient.
 - For "insurance_charge", ask the provider to correct the bill to match what the insurer was billed, or explain the difference.
 - For "insurance_balance", ask for a corrected balance, and note that the other corrections in the letter may resolve part of the difference.
-- Return exactly one section per finding ID.`;
+- Return exactly one section per finding ID.
+
+Examples of the style wanted:
+- "Code 85025 (CBC with automated differential) is billed twice on September 14, 2026, with identical units and modifiers. Please remove the repeated $64.00 charge."
+- "Code 80053 (comprehensive metabolic panel) is billed at $186.00, about 18 times the Medicare rate of $10.56. Please explain how this charge was set, or reduce it."`;
 
 export class GeminiProvider implements LlmProvider {
   private ai = new GoogleGenAI({ apiKey: config.gemini.apiKey });
@@ -74,8 +78,8 @@ export class GeminiProvider implements LlmProvider {
     );
   }
 
-  draftLetterSections(findings: Finding[], feedback: string[] = []) {
-    const facts = findings.map(({ id, checkId, category, amount, message, evidence }) => ({ id, checkId, category, amount, message, evidence }));
+  draftLetterSections(findings: LetterFinding[], feedback: string[] = []) {
+    const facts = findings.map(({ id, checkId, category, amount, message, evidence, services }) => ({ id, checkId, category, amount, message, evidence, services }));
     const retryNote = feedback.length ? `\nYour previous answer was rejected for these reasons; fix them:\n- ${feedback.join('\n- ')}` : '';
     return this.generateJson([{ text: `${LETTER_PROMPT}${retryNote}\n\nFindings:\n${JSON.stringify(facts, null, 2)}` }], letterSectionsJsonSchema);
   }

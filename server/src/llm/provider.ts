@@ -51,8 +51,11 @@ export type EobExtraction = z.infer<typeof EobExtractionSchema>;
 export interface LlmProvider {
   extractBill(pdf: Uint8Array): Promise<LlmResult>;
   extractEob(pdf: Uint8Array): Promise<LlmResult>;
-  draftLetterSections(findings: Finding[], feedback?: string[]): Promise<LlmResult>;
+  draftLetterSections(findings: LetterFinding[], feedback?: string[]): Promise<LlmResult>;
 }
+
+/** A finding plus the bill's descriptions of the lines it covers, so the letter can name services. */
+export type LetterFinding = Finding & { services?: string[] };
 
 /** The model's parsed JSON (validated by the caller) and which model produced it. */
 export interface LlmResult {
