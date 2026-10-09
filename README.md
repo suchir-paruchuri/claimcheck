@@ -4,6 +4,8 @@ Medical bills often contain errors, such as a charge listed twice, two services 
 
 > Not legal or medical advice. Pricing concerns compare charges with Medicare rates, which are not what a private insurer agreed to pay.
 
+**Live demo:** https://claimcheck-plum.vercel.app
+
 ## How it works
 
 1. **Upload.** The browser uploads the PDF straight to S3 with a presigned URL. The Express API queues an extraction job.
