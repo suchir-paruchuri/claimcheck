@@ -117,7 +117,8 @@
         "code": "99214",
         "billedToYou": 410,
         "billedToInsurer": 380,
-        "eobId": "eob-demo1"
+        "payer": "Peachtree Health Plan",
+        "claimNumber": "PHP-2026-0918-4471"
       },
       "id": "insurance_charge-1",
       "checkId": "insurance_charge"

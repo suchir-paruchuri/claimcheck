@@ -36,6 +36,9 @@ export interface LetterValidation {
  * schema shape, every finding covered exactly once, no unknown findings,
  * and every dollar amount mentioned matching that finding's audit data.
  */
+/** App-internal IDs (bill lines, statements) that mean nothing to a billing office. */
+const INTERNAL_ID_RE = /\b(?:li-\d+|eob-[\w-]+)\b/i;
+
 export function validateLetterSections(raw: unknown, findings: Finding[]): LetterValidation {
   const parsed = LetterSectionsSchema.safeParse(raw);
   if (!parsed.success) return { ok: false, errors: parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`) };
@@ -47,6 +50,8 @@ export function validateLetterSections(raw: unknown, findings: Finding[]): Lette
   for (const s of parsed.data.sections) {
     const finding = byId.get(s.findingId);
     if (!finding) { errors.push(`Unknown finding ID "${s.findingId}".`); continue; }
+    const internal = s.explanation.match(INTERNAL_ID_RE) ?? findings.find((f) => s.explanation.includes(f.id))?.id;
+    if (internal) errors.push(`Finding "${s.findingId}" mentions the internal ID "${internal}". Leave IDs out of the letter.`);
     if (seen.has(s.findingId)) errors.push(`Finding "${s.findingId}" is covered more than once.`);
     seen.add(s.findingId);
 

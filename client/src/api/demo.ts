@@ -115,7 +115,6 @@ export const demoApi: Api = {
       b.amountDue = 612;
       b.totalsReconcile = true;
       b.suggestedBillType = 'physician';
-      b.models = { extraction: 'gemini-3.8-flash' };
     });
     return id;
   },
@@ -152,7 +151,6 @@ export const demoApi: Api = {
     const b = bills.get(id)!;
     b.letter = { status: 'drafting' };
     setTimeout(() => {
-      b.models = { ...b.models, letter: 'gemini-3.8-flash' };
       const errors = b.findings.filter((f) => f.category === 'billing_error');
       const pricing = b.findings.filter((f) => f.category === 'pricing_concern');
       const insurance = b.findings.filter((f) => f.category === 'insurance_issue');

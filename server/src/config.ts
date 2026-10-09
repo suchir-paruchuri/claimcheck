@@ -3,10 +3,14 @@ import 'dotenv/config';
 /** Flash models only, best first. Each has its own free-tier quota, so falling back also spreads the load. */
 const DEFAULT_GEMINI_MODELS = ['gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3-flash'];
 
-function geminiModels(): string[] {
-  // GEMINI_MODELS is a comma-separated chain; GEMINI_MODEL (one model) still works.
-  const raw = process.env.GEMINI_MODELS ?? process.env.GEMINI_MODEL;
-  const models = raw?.split(',').map((m) => m.trim()).filter(Boolean) ?? [];
+const MODEL_ID_RE = /^[a-z0-9][a-z0-9.-]*$/i;
+
+/** GEMINI_MODELS is a comma-separated chain; GEMINI_MODEL (one model) still works. */
+export function parseGeminiModels(raw: string | undefined): string[] {
+  const models = (raw ?? '').split(',').map((m) => m.trim().replace(/^models\//, '')).filter(Boolean);
+  // Catch a pasted-together .env line (GEMINI_MODEL=GEMINI_MODELS=...) at startup, not on the first bill.
+  const bad = models.filter((m) => !MODEL_ID_RE.test(m));
+  if (bad.length) throw new Error(`Invalid Gemini model name(s) in .env: ${bad.map((m) => `"${m}"`).join(', ')}. Expected IDs like gemini-3.8-flash, separated by commas.`);
   return models.length ? [...new Set(models)] : DEFAULT_GEMINI_MODELS;
 }
 
@@ -27,7 +31,9 @@ export const config = {
     get apiKey() {
       return required('GEMINI_API_KEY');
     },
-    models: geminiModels(),
+    get models() {
+      return parseGeminiModels(process.env.GEMINI_MODELS ?? process.env.GEMINI_MODEL);
+    },
     // A request that hasn't answered by then counts as busy and moves to the next model.
     timeoutMs: Number(process.env.GEMINI_TIMEOUT_MS ?? 120_000),
   },

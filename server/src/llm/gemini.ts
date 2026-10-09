@@ -30,6 +30,7 @@ Rules:
 - For "billing_error" findings, ask for the charge to be corrected or removed.
 - For "pricing_concern" findings, ask the provider to justify or reduce the charge; do not call it an error.
 - For "insurance_issue" findings, ask the provider to confirm the charge was submitted to the patient's insurer, or to correct the amount, before billing the patient.
+- Never mention finding IDs, line IDs, or statement IDs; refer to charges by code, date, and amount. You may cite the insurer's name and claim number.
 - Return exactly one section per finding ID.`;
 
 export class GeminiProvider implements LlmProvider {

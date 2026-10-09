@@ -85,6 +85,14 @@ describe('letter validation', () => {
     expect(r.errors[0]).toMatch(/\$1400.00/);
   });
 
+  it('rejects internal IDs that would mean nothing to a billing office', () => {
+    const r = validateLetterSections(
+      { sections: [good.sections[0], { ...good.sections[1], explanation: `${good.sections[1].explanation} See statement eob-1e5b052b.` }] },
+      findings,
+    );
+    expect(r.errors.join(' ')).toMatch(/internal ID "eob-1e5b052b"/);
+  });
+
   it('rejects output that does not match the schema', () => {
     expect(validateLetterSections({ text: 'Dear hospital...' }, findings).ok).toBe(false);
   });

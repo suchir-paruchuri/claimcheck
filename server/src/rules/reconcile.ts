@@ -125,6 +125,7 @@ export function reconcile(
   disputedLineIds: Set<string> = new Set(),
 ): Reconciliation {
   const eobLines = eobs.flatMap((e) => e.lines);
+  const eobById = new Map(eobs.map((e) => [e.id, e]));
   const byEobLine = new Map(eobLines.map((l) => [l.id, l]));
   const byBillLine = new Map(billLines.map((l) => [l.id, l]));
   const { matches, unmatchedBillLineIds, unmatchedEobLineIds } = matchLines(billLines, eobLines);
@@ -152,6 +153,7 @@ export function reconcile(
     if (m.how === 'grouped') continue; // a grouped match already agrees on the total
     const bill = byBillLine.get(m.billLineIds[0])!;
     const eob = byEobLine.get(m.eobLineId)!;
+    const statement = eobById.get(eob.eobId);
     const diff = round2(bill.charge - eob.billed);
     if (diff > TOLERANCE) {
       findings.push(
@@ -160,7 +162,8 @@ export function reconcile(
           lineItemIds: [bill.id],
           amount: diff,
           message: `Code ${bill.code} is billed to you at ${money(bill.charge)}, but your insurer was billed ${money(eob.billed)} for it.`,
-          evidence: { code: bill.code, billedToYou: bill.charge, billedToInsurer: eob.billed, eobId: eob.eobId },
+          // Payer and claim number (not internal IDs), so the letter can cite the statement.
+          evidence: { code: bill.code, billedToYou: bill.charge, billedToInsurer: eob.billed, ...(statement?.payer && { payer: statement.payer }), ...(statement?.claimNumber && { claimNumber: statement.claimNumber }) },
         }),
       );
     }

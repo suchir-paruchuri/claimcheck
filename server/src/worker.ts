@@ -9,7 +9,7 @@ async function main() {
   registerProcessors(new GeminiProvider());
   const agenda = getAgenda();
   await agenda.start();
-  console.log('Worker started');
+  console.log(`Worker started (Gemini models: ${config.gemini.models.join(', ')})`);
 
   const shutdown = async () => {
     await agenda.stop(); // releases locks so another worker can pick jobs up immediately
