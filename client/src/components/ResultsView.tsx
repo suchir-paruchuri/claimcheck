@@ -1,20 +1,25 @@
 import { useState } from 'react';
 import type { Bill, Finding } from '../api';
 import { BILL_TYPE_LABEL, CHECK_LABEL, money, shortDate } from '../lib';
+import InsurancePanel from './InsurancePanel';
 import LetterPanel from './LetterPanel';
 
 export default function ResultsView({ bill, onChange }: { bill: Bill; onChange: () => void }) {
   const totals = bill.totals ?? { billed: 0, billingErrors: 0, pricingConcerns: 0 };
   const disputable = bill.findings.filter((f) => f.category !== 'info');
   const byLine = new Map<string, Finding[]>();
-  const billLevel: Finding[] = [];
+  const totalLevel: Finding[] = [];
+  const dueLevel: Finding[] = [];
   for (const f of bill.findings) {
     // Attach each finding to its last line, so a duplicate or an unbundled pair is annotated where the extra charge is.
     const anchor = f.lineItemIds.at(-1);
-    if (!anchor) billLevel.push(f);
+    if (!anchor) (f.checkId === 'insurance_balance' ? dueLevel : totalLevel).push(f);
     else byLine.set(anchor, [...(byLine.get(anchor) ?? []), f]);
   }
   const hospitalStay = bill.billType === 'inpatient' || bill.billType === 'uncertain';
+  const hasInsurance = bill.findings.some((f) => f.category === 'insurance_issue');
+  const recon = bill.reconciliation;
+  const overDue = recon && bill.amountDue !== undefined && bill.amountDue > recon.maxExpectedDue + 0.005;
 
   return (
     <section className="results">
@@ -32,6 +37,12 @@ export default function ResultsView({ bill, onChange }: { bill: Bill; onChange: 
           </>
         )}
       </p>
+      {overDue && (
+        <p className="verdict-sub">
+          Your insurance statement says you should owe at most <strong>{money(recon!.maxExpectedDue)}</strong>,
+          but this bill asks for <strong className="amt-error">{money(bill.amountDue)}</strong>.
+        </p>
+      )}
 
       <p className="bill-type">
         {BILL_TYPE_LABEL[bill.billType ?? 'uncertain']}.{' '}
@@ -43,6 +54,7 @@ export default function ResultsView({ bill, onChange }: { bill: Bill; onChange: 
       <div className="key" aria-label="Key">
         <span><i className="swatch swatch-error" /> Billing error: should be corrected</span>
         <span><i className="swatch swatch-concern" /> Pricing concern: ask for a justification or reduction</span>
+        {hasInsurance && <span><i className="swatch swatch-insurance" /> Insurance mismatch: check against your insurance statement</span>}
       </div>
 
       <div className="ledger annotated" role="table" aria-label="Your bill with findings">
@@ -59,7 +71,8 @@ export default function ResultsView({ bill, onChange }: { bill: Bill; onChange: 
           const errors = notes.filter((n) => n.category === 'billing_error');
           const worst = errors.some((n) => n.amount >= item.charge) ? 'error'
             : errors.length ? 'error-partial'
-            : notes.some((n) => n.category === 'pricing_concern') ? 'concern' : '';
+            : notes.some((n) => n.category === 'pricing_concern') ? 'concern'
+            : notes.some((n) => n.category === 'insurance_issue') ? 'insurance' : '';
           return (
             <div key={item.id} className={`ledger-row ${worst ? `row-${worst}` : ''}`} role="row">
               <span role="cell" className="date">{shortDate(item.dateOfService)}</span>
@@ -72,15 +85,23 @@ export default function ResultsView({ bill, onChange }: { bill: Bill; onChange: 
             </div>
           );
         })}
-        {billLevel.length > 0 && (
+        {totalLevel.length > 0 && (
           <div className="ledger-row row-error bill-level" role="row">
             <span role="cell" className="desc">Bill total</span>
             <span role="cell" className="num charge">{money(bill.statedTotal)}</span>
-            <span role="cell" className="margin">{billLevel.map((n) => <Annotation key={n.id} finding={n} />)}</span>
+            <span role="cell" className="margin">{totalLevel.map((n) => <Annotation key={n.id} finding={n} />)}</span>
+          </div>
+        )}
+        {dueLevel.length > 0 && (
+          <div className="ledger-row row-error-partial bill-level" role="row">
+            <span role="cell" className="desc">Amount you're asked to pay</span>
+            <span role="cell" className="num charge">{money(bill.amountDue)}</span>
+            <span role="cell" className="margin">{dueLevel.map((n) => <Annotation key={n.id} finding={n} />)}</span>
           </div>
         )}
       </div>
 
+      <InsurancePanel bill={bill} onChange={onChange} />
       <ChecksSummary bill={bill} />
       {disputable.length > 0 && <LetterPanel bill={bill} onChange={onChange} />}
     </section>
@@ -109,6 +130,7 @@ function Annotation({ finding }: { finding: Finding }) {
           )}
         </>
       )}
+      {finding.category === 'insurance_issue' && <p className="source">Compared with your insurance statement</p>}
       {(finding.checkId === 'unbundling' || finding.checkId === 'unit_limits') && (
         <p className="source">Source: {String(e.rule)}, {String(e.dataVersion)}</p>
       )}

@@ -131,10 +131,52 @@ billsRouter.put('/:id/letter', async (req, res) => {
   res.json({ ok: true });
 });
 
+// ---------- Insurance statements (Explanations of Benefits) ----------
+
+const MAX_EOBS_PER_BILL = 5;
+
+billsRouter.post('/:id/eobs', async (req, res) => {
+  const parsed = z.object({ filename: z.string().max(200).regex(/\.pdf$/i, 'Only PDF statements are supported') }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0].message });
+  const bill = await findOwnedBill(req);
+  if (!bill) return res.status(404).json({ error: 'Bill not found' });
+  if (bill.eobs.length >= MAX_EOBS_PER_BILL) return res.status(409).json({ error: `A bill can have up to ${MAX_EOBS_PER_BILL} insurance statements` });
+
+  const eobId = `eob-${randomUUID().slice(0, 8)}`;
+  const fileKey = `uploads/${userId(req)}/${randomUUID()}.pdf`;
+  bill.eobs.push({ id: eobId, fileKey, originalFilename: parsed.data.filename, status: 'pending' });
+  await bill.save();
+  res.status(201).json({ id: eobId, uploadUrl: await presignUpload(fileKey) });
+});
+
+billsRouter.post('/:id/eobs/:eobId/uploaded', async (req, res) => {
+  const bill = await findOwnedBill(req);
+  const eob = bill?.eobs.find((e) => e.id === req.params.eobId);
+  if (!bill || !eob) return res.status(404).json({ error: 'Statement not found' });
+  if (eob.status !== 'pending' && eob.status !== 'failed') return res.status(409).json({ error: `Statement is already ${eob.status}` });
+  eob.status = 'pending';
+  eob.error = undefined;
+  await bill.save();
+  await enqueue(JOBS.extractEob, bill.id, { eobId: eob.id });
+  res.status(202).json({ status: 'queued' });
+});
+
+billsRouter.delete('/:id/eobs/:eobId', async (req, res) => {
+  const bill = await findOwnedBill(req);
+  const eob = bill?.eobs.find((e) => e.id === req.params.eobId);
+  if (!bill || !eob) return res.status(404).json({ error: 'Statement not found' });
+  await deleteFile(eob.fileKey).catch(() => undefined);
+  bill.eobs.pull({ id: eob.id });
+  await bill.save();
+  if (bill.status === 'complete') await enqueue(JOBS.analyze, bill.id); // refresh the comparison
+  res.status(204).end();
+});
+
 billsRouter.delete('/:id', async (req, res) => {
   const bill = await findOwnedBill(req);
   if (!bill) return res.status(404).json({ error: 'Bill not found' });
   if (!bill.fileDeleted) await deleteFile(bill.fileKey).catch(() => undefined);
+  await Promise.all(bill.eobs.map((e) => deleteFile(e.fileKey).catch(() => undefined)));
   await bill.deleteOne();
   res.status(204).end();
 });

@@ -1,0 +1,140 @@
+{
+  "eob": {
+    "id": "eob-demo1",
+    "payer": "Peachtree Health Plan",
+    "claimNumber": "PHP-2026-0918-4471",
+    "lines": [
+      {
+        "id": "eob-demo1-1",
+        "eobId": "eob-demo1",
+        "dateOfService": "2026-09-14",
+        "code": "99214",
+        "description": "Office visit",
+        "billed": 380,
+        "allowed": 142.5,
+        "planPaid": 102.5,
+        "patientResponsibility": 40
+      },
+      {
+        "id": "eob-demo1-2",
+        "eobId": "eob-demo1",
+        "dateOfService": "2026-09-14",
+        "description": "Laboratory services",
+        "billed": 298,
+        "allowed": 38.2,
+        "planPaid": 8.2,
+        "patientResponsibility": 30
+      },
+      {
+        "id": "eob-demo1-3",
+        "eobId": "eob-demo1",
+        "dateOfService": "2026-09-14",
+        "code": "36415",
+        "description": "Blood draw",
+        "billed": 75,
+        "allowed": 9.34,
+        "planPaid": 9.34,
+        "patientResponsibility": 0
+      },
+      {
+        "id": "eob-demo1-4",
+        "eobId": "eob-demo1",
+        "dateOfService": "2026-09-14",
+        "code": "81003",
+        "description": "Urinalysis",
+        "billed": 39,
+        "allowed": 2.25,
+        "planPaid": 0,
+        "patientResponsibility": 5
+      }
+    ]
+  },
+  "reconciliation": {
+    "matches": [
+      {
+        "eobLineId": "eob-demo1-4",
+        "billLineIds": [
+          "li-7"
+        ],
+        "how": "code"
+      },
+      {
+        "eobLineId": "eob-demo1-3",
+        "billLineIds": [
+          "li-6"
+        ],
+        "how": "code"
+      },
+      {
+        "eobLineId": "eob-demo1-1",
+        "billLineIds": [
+          "li-1"
+        ],
+        "how": "code"
+      },
+      {
+        "eobLineId": "eob-demo1-2",
+        "billLineIds": [
+          "li-2",
+          "li-4",
+          "li-3"
+        ],
+        "how": "grouped"
+      }
+    ],
+    "unmatchedBillLineIds": [
+      "li-5",
+      "li-8"
+    ],
+    "unmatchedEobLineIds": [],
+    "patientResponsibility": 75,
+    "maxExpectedDue": 220
+  },
+  "findings": [
+    {
+      "category": "insurance_issue",
+      "lineItemIds": [
+        "li-8"
+      ],
+      "amount": 145,
+      "message": "Code 93000 ($145.00 on 2026-09-14) doesn't appear on any insurance statement you added. It may not have been submitted to your insurer.",
+      "evidence": {
+        "code": "93000",
+        "charge": 145,
+        "dateOfService": "2026-09-14"
+      },
+      "id": "insurance_missing-1",
+      "checkId": "insurance_missing"
+    },
+    {
+      "category": "insurance_issue",
+      "lineItemIds": [
+        "li-1"
+      ],
+      "amount": 30,
+      "message": "Code 99214 is billed to you at $410.00, but your insurer was billed $380.00 for it.",
+      "evidence": {
+        "code": "99214",
+        "billedToYou": 410,
+        "billedToInsurer": 380,
+        "eobId": "eob-demo1"
+      },
+      "id": "insurance_charge-1",
+      "checkId": "insurance_charge"
+    },
+    {
+      "category": "billing_error",
+      "lineItemIds": [],
+      "amount": 392,
+      "message": "This bill asks you to pay $612.00, but your insurance statements say you owe $75.00 for the services they cover, plus $145.00 in charges they don't list. That's $392.00 more than you should owe.",
+      "evidence": {
+        "amountDue": 612,
+        "patientResponsibility": 75,
+        "uncoveredCharges": 145,
+        "maxExpectedDue": 220
+      },
+      "id": "insurance_balance-1",
+      "checkId": "insurance_balance"
+    }
+  ]
+}

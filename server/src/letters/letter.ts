@@ -73,6 +73,7 @@ export function buildLetter(ctx: LetterContext, findings: Finding[], sections: L
   const text = new Map(sections.map((s) => [s.findingId, s.explanation]));
   const errors = findings.filter((f) => f.category === 'billing_error');
   const pricing = findings.filter((f) => f.category === 'pricing_concern');
+  const insurance = findings.filter((f) => f.category === 'insurance_issue');
 
   const lines = [
     ctx.date,
@@ -89,6 +90,10 @@ export function buildLetter(ctx: LetterContext, findings: Finding[], sections: L
   if (pricing.length) {
     lines.push('', 'Charges I am asking you to justify or reduce:');
     pricing.forEach((f, i) => lines.push(`${i + 1}. ${text.get(f.id)}`));
+  }
+  if (insurance.length) {
+    lines.push('', 'Charges to reconcile with my insurance:');
+    insurance.forEach((f, i) => lines.push(`${i + 1}. ${text.get(f.id)}`));
   }
   lines.push(
     '',

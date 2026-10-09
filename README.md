@@ -1,6 +1,6 @@
 # ClaimCheck
 
-Medical bill auditing and dispute assistant. A patient uploads an itemized bill; ClaimCheck extracts the line items, verifies them against the PDF itself and Medicare reference data, runs the audit checks that are valid for the bill type, and drafts a dispute letter built only from the findings.
+Medical bills often contain errors, such as a charge listed twice, two services billed separately when one already includes the other, or a balance higher than what the patient's insurance says they owe. They're hard to catch because itemized bills are dense pages of billing codes. ClaimCheck reads an uploaded bill, checks every line against Medicare's official coding rules and payment rates (over 3 million rules and 19,000 rates), compares the bill with the patient's insurance statements, and explains each problem it finds with the rule or number behind it. It then drafts a dispute letter built only from those verified findings, so a patient can go from a confusing bill to a specific, well-supported dispute in a few minutes.
 
 > Not legal or medical advice. Pricing concerns compare charges with Medicare rates, which are not what a private insurer agreed to pay.
 
@@ -15,7 +15,8 @@ Medical bill auditing and dispute assistant. A patient uploads an itemized bill;
    The model never reports confidence scores or page coordinates.
 3. **Review.** The patient corrects flagged items, marks services not received, and answers whether they were formally admitted. A classifier combines that answer with signals on the bill (room-and-board and observation revenue codes, type-of-bill code) to pick the bill type.
 4. **Audit (worker).** A pure TypeScript rules engine runs the checks valid for the bill type, using reference data fetched in one indexed query per collection.
-5. **Letter (worker).** Gemini returns one explanation per finding as schema-constrained JSON. Code validates it with Zod (every finding covered, no unknown findings, every dollar amount matches the audit) and retries with the errors as feedback before building the letter from a template.
+5. **Insurance comparison (optional).** The patient can add the Explanation of Benefits (EOB) their insurer sent. Gemini extracts its lines, which are checked against the PDF's text the same way. A matching step pairs bill lines with EOB lines by date, then code, then billed amount, and also finds EOB lines that group several bill lines (for example, one "Laboratory services" line covering three lab tests) by searching for subsets of same-day charges that add up to the EOB amount. It then flags a balance higher than the patient can owe, charges no statement covers (possibly never submitted to insurance), and charges billed to the patient at a different price than the insurer was billed.
+6. **Letter (worker).** Gemini returns one explanation per finding as schema-constrained JSON. Code validates it with Zod (every finding covered, no unknown findings, every dollar amount matches the audit) and retries with the errors as feedback before building the letter from a template.
 
 | Check | Doctor | Hospital outpatient | Inpatient / uncertain |
 |---|---|---|---|
@@ -151,12 +152,7 @@ All `/bills` routes require the session cookie, and every query filters by the s
 | PUT | `/bills/:id/review` | confirm items and admission answer, queue audit |
 | POST | `/bills/:id/letter` | queue letter drafting |
 | PUT | `/bills/:id/letter` | save patient edits |
-| DELETE | `/bills/:id` | delete bill and its file |
-
-## Known limitations
-
-- Medicare national rates, no regional adjustment.
-- Inpatient bills get a reduced set of checks; classification can be uncertain, and the app says so.
-- Source matching needs a text-based PDF (no OCR yet).
-- On Gemini's free tier, submitted content may be used by Google, so use synthetic bills only.
-- Coding rules cover dates of service from `--since` (default 2024-01-01) onward, and MUE limits are the current quarter's values.
+| DELETE | `/bills/:id` | delete bill and its files |
+| POST | `/bills/:id/eobs` | add an insurance statement, returns presigned upload URL |
+| POST | `/bills/:id/eobs/:eobId/uploaded` | queue statement extraction |
+| DELETE | `/bills/:id/eobs/:eobId` | remove a statement and re-run the comparison |

@@ -35,11 +35,42 @@ const findingSchema = new Schema(
   {
     id: String,
     checkId: String,
-    category: { type: String, enum: ['billing_error', 'pricing_concern', 'info'] },
+    category: { type: String, enum: ['billing_error', 'pricing_concern', 'insurance_issue', 'info'] },
     lineItemIds: [String],
     amount: Number,
     message: String,
     evidence: Schema.Types.Mixed,
+  },
+  { _id: false },
+);
+
+const eobLineSchema = new Schema(
+  {
+    id: { type: String, required: true },
+    eobId: { type: String, required: true },
+    dateOfService: { type: String, required: true },
+    code: String,
+    description: { type: String, default: '' },
+    billed: { type: Number, required: true },
+    allowed: Number,
+    planPaid: Number,
+    patientResponsibility: { type: Number, required: true },
+    foundInDocument: Boolean,
+  },
+  { _id: false },
+);
+
+/** An insurance statement (Explanation of Benefits) the patient added to this bill. */
+const eobSchema = new Schema(
+  {
+    id: { type: String, required: true },
+    fileKey: { type: String, required: true },
+    originalFilename: String,
+    status: { type: String, enum: ['pending', 'extracting', 'ready', 'failed'], default: 'pending' },
+    payer: String,
+    claimNumber: String,
+    lines: { type: [eobLineSchema], default: [] },
+    error: String,
   },
   { _id: false },
 );
@@ -64,14 +95,23 @@ const billSchema = new Schema(
     admissionDate: String,
     dischargeDate: String,
     statedTotal: Number,
+    amountDue: Number,
     totalsReconcile: Boolean,
 
     lineItems: { type: [lineItemSchema], default: [] },
     findings: { type: [findingSchema], default: [] },
+    eobs: { type: [eobSchema], default: [] },
+    reconciliation: {
+      matches: [{ _id: false, eobLineId: String, billLineIds: [String], how: String }],
+      unmatchedBillLineIds: [String],
+      unmatchedEobLineIds: [String],
+      patientResponsibility: Number,
+      maxExpectedDue: Number,
+    },
     checksRun: [String],
     checksSkipped: [{ _id: false, checkId: String, reason: String }],
     benchmarkMultiplier: Number,
-    totals: { billed: Number, billingErrors: Number, pricingConcerns: Number },
+    totals: { billed: Number, billingErrors: Number, pricingConcerns: Number, insuranceIssues: Number },
 
     letter: { text: String, generatedAt: Date, status: { type: String, enum: ['none', 'drafting', 'ready', 'failed'], default: 'none' } },
     error: String,

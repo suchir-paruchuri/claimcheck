@@ -10,7 +10,10 @@ const stepIndex = (s: Bill['status']) =>
   ({ pending: 0, extracting: 1, awaiting_review: 2, analyzing: 3, complete: 4, failed: 1 })[s];
 
 const isWorking = (b?: Bill) =>
-  !b || ['pending', 'extracting', 'analyzing'].includes(b.status) || b.letter?.status === 'drafting';
+  !b ||
+  ['pending', 'extracting', 'analyzing'].includes(b.status) ||
+  b.letter?.status === 'drafting' ||
+  !!b.eobs?.some((e) => e.status === 'pending' || e.status === 'extracting');
 
 export default function BillPage() {
   const { id } = useParams<{ id: string }>();

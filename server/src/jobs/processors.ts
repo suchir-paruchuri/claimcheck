@@ -3,15 +3,16 @@ import { config } from '../config';
 import type { BillForAudit, Finding } from '../domain/types';
 import { totalsReconcile, verifyItem } from '../extraction/verify';
 import { buildLetter, validateLetterSections } from '../letters/letter';
-import { ExtractionSchema, type LlmProvider } from '../llm/provider';
+import { EobExtractionSchema, ExtractionSchema, type LlmProvider } from '../llm/provider';
 import { Bill } from '../models/Bill';
 import { User } from '../models/User';
 import { classifyBill } from '../rules/classify';
-import { codesNeeded, ncciVersionFor, runAudit } from '../rules/engine';
+import { codesNeeded, fullyDisputedLineIds, ncciVersionFor, runAudit } from '../rules/engine';
+import { reconcile, type Eob, type EobLine } from '../rules/reconcile';
 import { readPdfText } from '../services/pdfText';
 import { loadCmsDescriptions, loadReferenceData } from '../services/referenceData';
 import { downloadFile } from '../services/storage';
-import { getAgenda, JOBS, type BillJobData, type JobName } from './queue';
+import { enqueue, getAgenda, JOBS, type BillJobData, type JobName } from './queue';
 
 const MAX_ATTEMPTS = 3;
 const RETRY_DELAYS_MS = [10_000, 40_000];
@@ -34,20 +35,26 @@ function isPermanent(err: unknown): boolean {
  * the last attempt the bill is marked failed with a readable error. Each processor
  * overwrites its own step's results, so a retry never duplicates data.
  */
-function withRetries(name: JobName, handler: (billId: string) => Promise<void>) {
+function withRetries(name: JobName, handler: (billId: string, data: BillJobData) => Promise<void>) {
   return async (job: Job<BillJobData>) => {
     const { billId, attempt = 1 } = job.attrs.data;
     try {
-      await handler(billId);
+      await handler(billId, job.attrs.data);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       console.error(`[${name}] bill ${billId} attempt ${attempt} failed: ${message}`);
       if (!isPermanent(err) && attempt < MAX_ATTEMPTS) {
-        await getAgenda().schedule<BillJobData>(new Date(Date.now() + RETRY_DELAYS_MS[attempt - 1]), name, { billId, attempt: attempt + 1 });
+        await getAgenda().schedule<BillJobData>(new Date(Date.now() + RETRY_DELAYS_MS[attempt - 1]), name, { ...job.attrs.data, attempt: attempt + 1 });
         return;
       }
       if (name === JOBS.letter) await Bill.updateOne({ _id: billId }, { 'letter.status': 'failed', error: message });
-      else await Bill.updateOne({ _id: billId }, { status: 'failed', error: `We couldn't process this bill: ${message}` });
+      else if (name === JOBS.extractEob) {
+        // A failed insurance statement shouldn't fail the bill itself.
+        await Bill.updateOne(
+          { _id: billId, 'eobs.id': job.attrs.data.eobId },
+          { $set: { 'eobs.$.status': 'failed', 'eobs.$.error': `We couldn't read this statement: ${message}` } },
+        );
+      } else await Bill.updateOne({ _id: billId }, { status: 'failed', error: `We couldn't process this bill: ${message}` });
     }
   };
 }
@@ -97,6 +104,7 @@ export async function extractBill(billId: string, llm: LlmProvider) {
     admissionDate: extraction.admissionDate,
     dischargeDate: extraction.dischargeDate,
     statedTotal: extraction.statedTotal,
+    amountDue: extraction.amountDue,
     totalsReconcile: totalsReconcile(extraction.lineItems.map((i) => i.charge), extraction.statedTotal),
     lineItems: extraction.lineItems.map((item, i) => {
       const v = verifyItem(item, pageTexts, descriptions.get(item.code));
@@ -117,6 +125,53 @@ export async function extractBill(billId: string, llm: LlmProvider) {
   await bill.save();
 }
 
+function toEobLine(l: InstanceType<typeof Bill>['eobs'][number]['lines'][number]): EobLine {
+  return {
+    id: l.id,
+    eobId: l.eobId,
+    dateOfService: l.dateOfService,
+    code: l.code ?? undefined,
+    description: l.description,
+    billed: l.billed,
+    allowed: l.allowed ?? undefined,
+    planPaid: l.planPaid ?? undefined,
+    patientResponsibility: l.patientResponsibility,
+  };
+}
+
+/** Reads an insurance statement, checks each line against the PDF's text, then re-runs the audit. */
+export async function extractEob(billId: string, eobId: string, llm: LlmProvider) {
+  const bill = await Bill.findById(billId);
+  const eob = bill?.eobs.find((e) => e.id === eobId);
+  if (!bill || !eob) throw new PermanentError('Statement not found');
+  eob.status = 'extracting';
+  eob.error = undefined;
+  await bill.save();
+
+  const pdf = await downloadFile(eob.fileKey);
+  const pageTexts = await readPdfText(pdf);
+  const parsed = EobExtractionSchema.safeParse(await llm.extractEob(pdf));
+  if (!parsed.success) throw new Error('The statement response did not match the expected format');
+  if (parsed.data.lines.length === 0) throw new PermanentError('No service lines were found. Is this an Explanation of Benefits?');
+
+  const normalized = pageTexts.map((t) => t.toLowerCase().replace(/\s+/g, ' '));
+  eob.set({
+    payer: parsed.data.payer,
+    claimNumber: parsed.data.claimNumber,
+    lines: parsed.data.lines.map(({ sourceText, ...line }, i) => ({
+      ...line,
+      id: `${eobId}-${i + 1}`,
+      eobId,
+      // Same independent check as bills: the line the model read must exist in the PDF itself.
+      foundInDocument: normalized.some((page) => page.includes(sourceText.toLowerCase().replace(/\s+/g, ' ').trim())),
+    })),
+    status: 'ready',
+  });
+  await bill.save();
+  // Results already shown? Re-run the audit so the comparison appears.
+  if (bill.status === 'complete') await enqueue(JOBS.analyze, billId);
+}
+
 export async function analyzeBill(billId: string) {
   const bill = await Bill.findById(billId);
   if (!bill) throw new PermanentError('Bill not found');
@@ -128,11 +183,39 @@ export async function analyzeBill(billId: string) {
   const ref = await loadReferenceData(codesNeeded(audit), ncciVersionFor(audit));
   const result = runAudit(audit, ref, { benchmarkMultiplier: config.benchmarkMultiplier });
 
+  // With insurance statements attached, also compare the bill against what the insurer says is owed.
+  const eobs: Eob[] = bill.eobs
+    .filter((e) => e.status === 'ready')
+    .map((e) => ({ id: e.id, payer: e.payer ?? undefined, claimNumber: e.claimNumber ?? undefined, lines: e.lines.map(toEobLine) }));
+  // Lines already disputed in full (a duplicate, say) aren't also reported as missing from
+  // insurance or counted toward what's owed.
+  const disputed = fullyDisputedLineIds(result.findings);
+  const recon = eobs.length ? reconcile(audit.lineItems, eobs, bill.amountDue ?? undefined, disputed) : undefined;
+  const findings = [...result.findings, ...(recon?.findings ?? [])];
+  // The balance check compares the whole amount due, so it overlaps the line-level findings; it's
+  // shown on its own rather than added into the totals.
+  const sum = (cat: Finding['category']) =>
+    Math.round(findings.filter((f) => f.category === cat && f.checkId !== 'insurance_balance').reduce((s, f) => s + f.amount, 0) * 100) / 100;
+
   bill.set({
-    findings: result.findings,
-    checksRun: result.checksRun,
+    findings,
+    reconciliation: recon
+      ? {
+          matches: recon.matches,
+          unmatchedBillLineIds: recon.unmatchedBillLineIds,
+          unmatchedEobLineIds: recon.unmatchedEobLineIds,
+          patientResponsibility: recon.patientResponsibility,
+          maxExpectedDue: recon.maxExpectedDue,
+        }
+      : undefined,
+    checksRun: recon ? [...result.checksRun, 'insurance'] : result.checksRun,
     checksSkipped: result.checksSkipped,
-    totals: result.totals,
+    totals: {
+      billed: result.totals.billed,
+      billingErrors: sum('billing_error'),
+      pricingConcerns: sum('pricing_concern'),
+      insuranceIssues: sum('insurance_issue'),
+    },
     benchmarkMultiplier: config.benchmarkMultiplier,
     status: 'complete',
     'timings.analysisMs': Date.now() - started,
@@ -176,6 +259,7 @@ export function registerProcessors(llm: LlmProvider) {
   const agenda = getAgenda();
   // Concurrency caps on the Gemini-backed jobs keep requests within the API's rate limits.
   agenda.define<BillJobData>(JOBS.extract, { concurrency: 2 }, withRetries(JOBS.extract, (id) => extractBill(id, llm)));
-  agenda.define<BillJobData>(JOBS.analyze, { concurrency: 5 }, withRetries(JOBS.analyze, analyzeBill));
+  agenda.define<BillJobData>(JOBS.extractEob, { concurrency: 2 }, withRetries(JOBS.extractEob, (id, data) => extractEob(id, data.eobId!, llm)));
+  agenda.define<BillJobData>(JOBS.analyze, { concurrency: 5 }, withRetries(JOBS.analyze, (id) => analyzeBill(id)));
   agenda.define<BillJobData>(JOBS.letter, { concurrency: 1 }, withRetries(JOBS.letter, (id) => draftLetter(id, llm)));
 }

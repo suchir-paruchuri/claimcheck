@@ -22,6 +22,7 @@ export function getAgenda(): Agenda {
 
 export const JOBS = {
   extract: 'extract-bill',
+  extractEob: 'extract-eob',
   analyze: 'analyze-bill',
   letter: 'draft-letter',
 } as const;
@@ -29,11 +30,12 @@ export type JobName = (typeof JOBS)[keyof typeof JOBS];
 
 export interface BillJobData {
   billId: string;
+  eobId?: string;
   attempt?: number;
 }
 
-export async function enqueue(name: JobName, billId: string) {
+export async function enqueue(name: JobName, billId: string, extra: { eobId?: string } = {}) {
   const agenda = getAgenda();
   await agenda._ready;
-  await agenda.now<BillJobData>(name, { billId, attempt: 1 });
+  await agenda.now<BillJobData>(name, { billId, ...extra, attempt: 1 });
 }

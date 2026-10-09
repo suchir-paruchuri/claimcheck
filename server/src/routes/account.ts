@@ -79,9 +79,10 @@ accountRouter.delete('/', passwordLimiter, async (req, res) => {
   if (check.error === 403) return res.status(403).json(wrongPassword);
   const { user } = check;
 
-  const bills = await Bill.find({ userId: user._id }).select('fileKey fileDeleted').lean();
+  const bills = await Bill.find({ userId: user._id }).select('fileKey fileDeleted eobs.fileKey').lean();
   // File deletion is best-effort: the bucket's 30-day lifecycle rule removes anything missed.
-  await Promise.all(bills.filter((b) => !b.fileDeleted).map((b) => deleteFile(b.fileKey).catch(() => undefined)));
+  const keys = bills.flatMap((b) => [...(b.fileDeleted ? [] : [b.fileKey]), ...(b.eobs ?? []).map((e) => e.fileKey)]);
+  await Promise.all(keys.map((key) => deleteFile(key).catch(() => undefined)));
   await Bill.deleteMany({ userId: user._id });
   await user.deleteOne();
   clearSession(res);

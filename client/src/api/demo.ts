@@ -3,6 +3,7 @@
 // rules match the real 2026 CMS data the server uses.
 import type { Api, Bill, Finding, LineItem, User } from './types';
 import demoAudit from './demoAudit.json';
+import demoEob from './demoEob.json';
 
 const user: User = { id: 'demo', email: 'demo@claimcheck.app', name: 'Jordan Rivera', createdAt: new Date().toISOString() };
 const DEMO_PASSWORD = 'demo-password';
@@ -51,9 +52,20 @@ function auditFindings(b: Bill): Finding[] {
   return findings;
 }
 
-function totals(b: Bill) {
-  const sum = (c: string) => Math.round(b.findings.filter((f) => f.category === c).reduce((s, f) => s + f.amount, 0) * 100) / 100;
-  return { billed: b.lineItems.reduce((s, l) => s + l.charge, 0), billingErrors: sum('billing_error'), pricingConcerns: sum('pricing_concern') };
+/** Line findings plus, once a statement has been read, the insurance comparison (also from the real engine). */
+function analyze(b: Bill) {
+  const hasEob = !!b.eobs?.some((e) => e.status === 'ready');
+  b.findings = [...auditFindings(b), ...(hasEob ? (demoEob.findings as unknown as Finding[]) : [])];
+  b.reconciliation = hasEob ? (demoEob.reconciliation as Bill['reconciliation']) : undefined;
+  b.checksRun = hasEob ? [...demoAudit.checksRun, 'insurance'] : demoAudit.checksRun;
+  const sum = (c: string) =>
+    Math.round(b.findings.filter((f) => f.category === c && f.checkId !== 'insurance_balance').reduce((s, f) => s + f.amount, 0) * 100) / 100;
+  b.totals = {
+    billed: b.lineItems.reduce((s, l) => s + l.charge, 0),
+    billingErrors: sum('billing_error'),
+    pricingConcerns: sum('pricing_concern'),
+    insuranceIssues: sum('insurance_issue'),
+  };
 }
 
 function advance(id: string, status: Bill['status'], ms: number, then?: (b: Bill) => void) {
@@ -100,6 +112,7 @@ export const demoApi: Api = {
     advance(id, 'awaiting_review', 3500, (b) => {
       b.lineItems = sampleLines();
       b.statedTotal = 1031;
+      b.amountDue = 612;
       b.totalsReconcile = true;
       b.suggestedBillType = 'physician';
     });
@@ -128,11 +141,9 @@ export const demoApi: Api = {
     b.billType = payload.billTypeOverride ?? 'physician';
     b.status = 'analyzing';
     advance(id, 'complete', 1800, (bill) => {
-      bill.findings = auditFindings(bill);
-      bill.checksRun = demoAudit.checksRun;
+      analyze(bill);
       bill.checksSkipped = [{ checkId: 'outside_stay', reason: 'Only applies to hospital stays with admission and discharge dates.' }];
       bill.benchmarkMultiplier = 3;
-      bill.totals = totals(bill);
     });
   },
 
@@ -142,6 +153,7 @@ export const demoApi: Api = {
     setTimeout(() => {
       const errors = b.findings.filter((f) => f.category === 'billing_error');
       const pricing = b.findings.filter((f) => f.category === 'pricing_concern');
+      const insurance = b.findings.filter((f) => f.category === 'insurance_issue');
       b.letter = {
         status: 'ready', generatedAt: new Date().toISOString(),
         text: [
@@ -152,6 +164,9 @@ export const demoApi: Api = {
           ...errors.map((f, i) => `${i + 1}. ${f.message} Please correct or remove this charge.`),
           '', 'Charges I am asking you to justify or reduce:',
           ...pricing.map((f, i) => `${i + 1}. ${f.message} Please explain this charge or reduce it.`),
+          ...(insurance.length
+            ? ['', 'Charges to reconcile with my insurance:', ...insurance.map((f, i) => `${i + 1}. ${f.message} Please confirm this was submitted to my insurer, or correct it, before billing me.`)]
+            : []),
           '', 'Please send a corrected itemized bill, and place my account on hold while these items are reviewed.', '', 'Sincerely,', user.name,
         ].join('\n'),
       };
@@ -159,4 +174,31 @@ export const demoApi: Api = {
   },
   async saveLetter(id, text) { const b = bills.get(id)!; b.letter = { ...b.letter!, text }; },
   async deleteBill(id) { bills.delete(id); },
+
+  async uploadEob(billId, file) {
+    await wait(600);
+    const b = bills.get(billId)!;
+    const id = `eob-demo${(b.eobs?.length ?? 0) + 1}`;
+    b.eobs = [...(b.eobs ?? []), { id, originalFilename: file.name, status: 'extracting', lines: [] }];
+    setTimeout(() => {
+      const eob = b.eobs?.find((e) => e.id === id);
+      if (!eob) return;
+      Object.assign(eob, {
+        status: 'ready',
+        payer: demoEob.eob.payer,
+        claimNumber: demoEob.eob.claimNumber,
+        lines: demoEob.eob.lines.map((l) => ({ ...l, id: `${id}-${l.id.split('-').pop()}`, eobId: id, foundInDocument: true })),
+      });
+      if (b.status === 'complete') {
+        b.status = 'analyzing';
+        advance(billId, 'complete', 1500, analyze);
+      }
+    }, 2500);
+  },
+  async retryEob() {},
+  async deleteEob(billId, eobId) {
+    const b = bills.get(billId)!;
+    b.eobs = b.eobs?.filter((e) => e.id !== eobId);
+    if (b.status === 'complete') analyze(b);
+  },
 };

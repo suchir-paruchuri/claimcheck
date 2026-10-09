@@ -85,9 +85,12 @@ export type CheckId =
   | 'unit_limits'
   | 'pricing'
   | 'not_received'
-  | 'outside_stay';
+  | 'outside_stay'
+  | 'insurance_balance'
+  | 'insurance_missing'
+  | 'insurance_charge';
 
-export type FindingCategory = 'billing_error' | 'pricing_concern' | 'info';
+export type FindingCategory = 'billing_error' | 'pricing_concern' | 'insurance_issue' | 'info';
 
 export interface Finding {
   id: string;

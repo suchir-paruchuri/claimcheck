@@ -3,15 +3,23 @@ import { z } from 'zod';
 import { config } from '../config';
 import type { Finding } from '../domain/types';
 import { letterSectionsJsonSchema } from '../letters/letter';
-import { ExtractionSchema, type LlmProvider } from './provider';
+import { EobExtractionSchema, ExtractionSchema, type LlmProvider } from './provider';
 
 const EXTRACTION_PROMPT = `You are reading an itemized medical bill. Return every billed line item as JSON.
 Rules:
 - Copy codes exactly as printed. Never guess or correct a code.
 - "sourceText" must be the exact text of that line as printed on the bill, including the code.
 - Dates as YYYY-MM-DD. Money as plain numbers without $ or commas.
-- Include revenueCode, placeOfService, typeOfBill, admission/discharge dates, and statedTotal only if printed on the bill.
+- Include revenueCode, placeOfService, typeOfBill, admission/discharge dates, statedTotal (total charges), and amountDue (the balance the patient is asked to pay) only if printed on the bill.
 - Do not include payments, adjustments, or insurance lines as line items.`;
+
+const EOB_PROMPT = `You are reading a health insurance Explanation of Benefits (EOB). Return every service line as JSON.
+Rules:
+- Copy codes exactly as printed, and leave "code" out if the statement doesn't show one. Never guess a code.
+- "billed" is the amount the provider charged the insurer. "patientResponsibility" is everything the patient owes for that line (deductible, copay, coinsurance, and amounts not covered).
+- "sourceText" must be the exact text of that line as printed.
+- Dates as YYYY-MM-DD. Money as plain numbers without $ or commas.
+- Do not include summary or total rows as lines.`;
 
 const LETTER_PROMPT = `Write one short, factual paragraph for each finding below, for a patient's billing dispute letter.
 Rules:
@@ -20,6 +28,7 @@ Rules:
 - Write any dollar amount exactly as it appears in the finding's amount or evidence, formatted like $1,234.56.
 - For "billing_error" findings, ask for the charge to be corrected or removed.
 - For "pricing_concern" findings, ask the provider to justify or reduce the charge; do not call it an error.
+- For "insurance_issue" findings, ask the provider to confirm the charge was submitted to the patient's insurer, or to correct the amount, before billing the patient.
 - Return exactly one section per finding ID.`;
 
 export class GeminiProvider implements LlmProvider {
@@ -39,6 +48,13 @@ export class GeminiProvider implements LlmProvider {
     return this.generateJson(
       [{ inlineData: { mimeType: 'application/pdf', data: Buffer.from(pdf).toString('base64') } }, { text: EXTRACTION_PROMPT }],
       z.toJSONSchema(ExtractionSchema, { io: 'input' }),
+    );
+  }
+
+  extractEob(pdf: Uint8Array) {
+    return this.generateJson(
+      [{ inlineData: { mimeType: 'application/pdf', data: Buffer.from(pdf).toString('base64') } }, { text: EOB_PROMPT }],
+      z.toJSONSchema(EobExtractionSchema, { io: 'input' }),
     );
   }
 

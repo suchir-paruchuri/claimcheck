@@ -49,4 +49,5 @@ export const CHECK_LABEL: Record<string, string> = {
   pricing: 'Prices compared with Medicare',
   not_received: 'Services you didn’t receive',
   outside_stay: 'Charges outside your stay dates',
+  insurance: 'Comparison with your insurance statement',
 };

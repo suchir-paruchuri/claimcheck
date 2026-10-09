@@ -13,6 +13,8 @@
   --error-wash: #fbebe7;
   --concern: #7a5600;
   --highlight: #f6e3a1;  /* highlighter */
+  --insurance: #1d6a86;  /* insurance comparison */
+  --insurance-wash: #e6f1f5;
   --ok: #2b7151;
   --radius: 6px;
   --font: 'Public Sans', system-ui, sans-serif;
@@ -174,11 +176,28 @@ input[aria-invalid='true'] { border-color: var(--error); }
 .amt-error { color: var(--error); }
 .amt-concern { background: linear-gradient(transparent 55%, var(--highlight) 55%); }
 .bill-type { margin-bottom: 1.5rem; }
+.verdict-sub { font-size: 1.15rem; max-width: 52ch; margin: -0.25rem 0 1rem; }
+
+/* insurance comparison */
+.insurance { background: var(--sheet); border: 1px solid var(--rule); border-left: 4px solid var(--insurance); border-radius: var(--radius); padding: 1.5rem; margin-bottom: 1.5rem; }
+.insurance h2 { font-size: 1.15rem; }
+.insurance-summary { display: grid; grid-template-columns: max-content auto; gap: 0.3rem 2rem; margin: 0.25rem 0 1.25rem; justify-content: start; }
+.insurance-summary dt { color: var(--ink-2); }
+.insurance-summary dd { margin: 0; font-weight: 650; text-align: right; }
+.eob { border-top: 1px solid var(--rule); padding: 1rem 0 0.75rem; }
+.eob-head { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
+.eob-name { font-weight: 650; }
+.eob-lines { width: 100%; border-collapse: collapse; font-size: 0.92rem; margin-bottom: 0.6rem; }
+.eob-lines th { text-align: left; font-size: 0.82rem; color: var(--ink-2); font-weight: 650; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--ink); }
+.eob-lines td { padding: 0.5rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+.eob-lines .num, .eob-lines th.num { text-align: right; }
+.status-pending { color: var(--action); }
 .key { display: flex; gap: 1.5rem; flex-wrap: wrap; font-size: 0.9rem; color: var(--ink-2); margin-bottom: 0.75rem; }
 .key span { display: inline-flex; align-items: center; gap: 0.45rem; }
 .swatch { width: 1.1rem; height: 0.7rem; display: inline-block; border-radius: 2px; }
 .swatch-error { background: var(--error); }
 .swatch-concern { background: var(--highlight); border: 1px solid #e2c766; }
+.swatch-insurance { background: var(--insurance); }
 
 .annotated .ledger-head, .annotated .ledger-row { grid-template-columns: 7.5rem 5.5rem minmax(0, 1fr) 6rem minmax(15rem, 22rem); }
 .annotated .margin-head, .annotated .margin { border-left: 1px dashed var(--rule-strong); padding-left: 1rem; }
@@ -186,6 +205,7 @@ input[aria-invalid='true'] { border-color: var(--error); }
 .row-error .charge { color: var(--error); text-decoration: line-through; text-decoration-thickness: 2px; }
 .row-error-partial .charge { color: var(--error); font-weight: 650; }
 .row-concern .charge { background: linear-gradient(transparent 50%, var(--highlight) 50%); justify-self: end; padding: 0 0.15rem; }
+.row-insurance .charge { color: var(--insurance); font-weight: 650; text-decoration: underline wavy var(--insurance); text-underline-offset: 4px; }
 .bill-level { grid-template-columns: 1fr 6rem minmax(15rem, 22rem) !important; }
 .bill-level .desc { font-weight: 650; }
 
@@ -195,6 +215,7 @@ input[aria-invalid='true'] { border-color: var(--error); }
 .note-billing_error { border-color: var(--error); }
 .note-pricing_concern { border-color: #d9b845; }
 .note-info { border-color: var(--rule-strong); color: var(--ink-2); }
+.note-insurance_issue { border-color: var(--insurance); }
 .note .source { color: var(--ink-2); font-size: 0.82rem; }
 .math { display: grid; grid-template-columns: auto auto; gap: 0.1rem 1rem; margin: 0.4rem 0 0; font-size: 0.85rem; justify-content: start; }
 .math dt { color: var(--ink-2); }
@@ -215,6 +236,7 @@ input[aria-invalid='true'] { border-color: var(--error); }
 
 /* ---------- small screens ---------- */
 @media (max-width: 820px) {
+  .eob-lines th:nth-child(4), .eob-lines td:nth-child(4) { display: none; }
   h1 { font-size: 1.6rem; }
   .auth { grid-template-columns: 1fr; gap: 2rem; padding-top: 1rem; }
   .ledger-head { display: none; }

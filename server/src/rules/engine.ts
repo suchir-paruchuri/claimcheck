@@ -60,14 +60,9 @@ export function runAudit(bill: BillForAudit, ref: ReferenceData, opts: { benchma
     }
   }
 
-  // A line whose whole charge is already disputed (a repeated duplicate, a code billed separately
-  // that should be bundled, a service not received, a charge outside the stay) shouldn't also
-  // count as a pricing concern, or totals double-count.
-  const fullyDisputed = new Set<string>();
-  for (const f of findings) {
-    if (f.checkId === 'duplicates' || f.checkId === 'unbundling') f.lineItemIds.slice(1).forEach((id) => fullyDisputed.add(id));
-    if ((f.checkId === 'not_received' || f.checkId === 'outside_stay') && f.category === 'billing_error') f.lineItemIds.forEach((id) => fullyDisputed.add(id));
-  }
+  // A line whose whole charge is already disputed shouldn't also count as a pricing concern,
+  // or the totals would double-count it.
+  const fullyDisputed = fullyDisputedLineIds(findings);
   const kept = findings.filter((f) => f.checkId !== 'pricing' || !fullyDisputed.has(f.lineItemIds[0]));
   findings.length = 0;
   findings.push(...kept);
@@ -83,6 +78,20 @@ export function runAudit(bill: BillForAudit, ref: ReferenceData, opts: { benchma
       pricingConcerns: sum('pricing_concern'),
     },
   };
+}
+
+/**
+ * Lines whose entire charge is already disputed as a billing error: the repeated copies of a
+ * duplicate, a code billed separately that should be bundled, a service not received, or a
+ * charge outside the stay. Later comparisons skip these so the same dollars aren't counted twice.
+ */
+export function fullyDisputedLineIds(findings: Finding[]): Set<string> {
+  const ids = new Set<string>();
+  for (const f of findings) {
+    if (f.checkId === 'duplicates' || f.checkId === 'unbundling') f.lineItemIds.slice(1).forEach((id) => ids.add(id));
+    if ((f.checkId === 'not_received' || f.checkId === 'outside_stay') && f.category === 'billing_error') f.lineItemIds.forEach((id) => ids.add(id));
+  }
+  return ids;
 }
 
 /** Codes the engine will need reference data for, so callers can batch-fetch it in one query per collection. */

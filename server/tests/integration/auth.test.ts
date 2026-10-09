@@ -129,6 +129,7 @@ describe('bill ownership', () => {
       bob.put(`/bills/${id}/review`).send({ admissionAnswer: 'unsure', lineItems: [] }),
       bob.post(`/bills/${id}/letter`),
       bob.put(`/bills/${id}/letter`).send({ text: 'hijacked' }),
+      bob.post(`/bills/${id}/eobs`).send({ filename: 'eob.pdf' }),
       bob.delete(`/bills/${id}`),
     ];
     for (const res of await Promise.all(attempts)) expect(res.status).toBe(404);
@@ -138,6 +139,20 @@ describe('bill ownership', () => {
     expect(bill).not.toBeNull();
     expect(bill!.status).toBe('complete');
     expect(bill!.letter?.text).toBeUndefined();
+  });
+
+  it("keeps insurance statements private to the bill's owner", async () => {
+    const alice = await signedInAgent('alice@example.com');
+    const bob = await signedInAgent('bob@example.com');
+    const id = await createBill(alice);
+    const created = await alice.post(`/bills/${id}/eobs`).send({ filename: 'eob.pdf' });
+    expect(created.status).toBe(201);
+    const eobId = created.body.id;
+
+    expect((await bob.post(`/bills/${id}/eobs/${eobId}/uploaded`)).status).toBe(404);
+    expect((await bob.delete(`/bills/${id}/eobs/${eobId}`)).status).toBe(404);
+    expect((await alice.post(`/bills/${id}/eobs/${eobId}/uploaded`)).status).toBe(202);
+    expect((await Bill.findById(id).lean())!.eobs).toHaveLength(1);
   });
 
   it("lists only the signed-in user's bills", async () => {

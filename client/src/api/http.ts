@@ -57,4 +57,13 @@ export const httpApi: Api = {
   requestLetter: (id) => request(`/bills/${id}/letter`, json('POST')),
   saveLetter: (id, text) => request(`/bills/${id}/letter`, json('PUT', { text })),
   deleteBill: (id) => request(`/bills/${id}`, { method: 'DELETE' }),
+
+  async uploadEob(billId, file) {
+    const { id, uploadUrl } = await request<{ id: string; uploadUrl: string }>(`/bills/${billId}/eobs`, json('POST', { filename: file.name }));
+    const put = await fetch(uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': 'application/pdf' } });
+    if (!put.ok) throw new ApiError(put.status, 'The statement could not be uploaded. Try again.');
+    await request(`/bills/${billId}/eobs/${id}/uploaded`, json('POST'));
+  },
+  retryEob: (billId, eobId) => request(`/bills/${billId}/eobs/${eobId}/uploaded`, json('POST')),
+  deleteEob: (billId, eobId) => request(`/bills/${billId}/eobs/${eobId}`, { method: 'DELETE' }),
 };
