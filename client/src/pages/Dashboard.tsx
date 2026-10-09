@@ -53,7 +53,7 @@ export default function Dashboard() {
               {uploading ? 'Uploading…' : 'Audit the sample bill'}
             </button>
             <p className="hint">
-              This demo runs without a backend, so it uses a sample bill instead of uploads.{' '}
+              Uploads are turned off in this demo, so you'll audit a sample bill.{' '}
               <a href="/samples/sample-itemized-bill.pdf" target="_blank" rel="noreferrer">View the bill (PDF)</a>
             </p>
           </div>
