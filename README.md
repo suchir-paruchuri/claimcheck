@@ -65,6 +65,17 @@ data/
     MCR_MUE_OutpatientHospitalServices_Eff_10-01-2026.csv
 ```
 
+### Running the tests
+
+```bash
+cd server
+npm install
+npm run test:unit                                          # rules engine, verification, letters, parsers: no database
+MONGODB_TEST_URI=mongodb://localhost:27017 npm test        # everything, including API tests against the Docker MongoDB
+```
+
+The API tests cover sign-up and sign-in (bcrypt hashing, identical errors for wrong passwords and unknown emails, rate limiting), session checks (missing, expired, forged, and wrongly signed JWTs), and bill ownership: every route returns "not found" for another user's bill, and nothing they try changes it. Each test run uses its own `claimcheck_test_*` database and never touches your real data. Without `MONGODB_TEST_URI`, the tests start a temporary in-memory MongoDB instead.
+
 ### Without Docker
 
 Install MongoDB 7 and Node 22, then:

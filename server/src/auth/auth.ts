@@ -43,8 +43,14 @@ const credentials = z.object({
   password: z.string().min(10, 'Password must be at least 10 characters').max(128),
 });
 
-// Slows down password guessing. In-memory store is fine for a single server.
-const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 10, standardHeaders: true, legacyHeaders: false });
+// Slows down password guessing: 10 attempts per IP per 15 minutes by default. The limit is read
+// per request so tests can raise or lower it. In-memory store is fine for a single server.
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: () => Number(process.env.AUTH_RATE_LIMIT ?? 10),
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 export const authRouter = Router();
 
