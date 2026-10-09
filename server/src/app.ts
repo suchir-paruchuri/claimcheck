@@ -2,6 +2,7 @@ import cookieParser from 'cookie-parser';
 import express, { type ErrorRequestHandler } from 'express';
 import { authRouter, requireAuth } from './auth/auth';
 import { config } from './config';
+import { accountRouter } from './routes/account';
 import { billsRouter } from './routes/bills';
 
 export function createApp() {
@@ -15,13 +16,14 @@ export function createApp() {
     res.header('Access-Control-Allow-Origin', config.clientOrigin);
     res.header('Access-Control-Allow-Credentials', 'true');
     res.header('Access-Control-Allow-Headers', 'Content-Type');
-    res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+    res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
     if (req.method === 'OPTIONS') return res.status(204).end();
     next();
   });
 
   app.get('/health', (_req, res) => res.json({ ok: true }));
   app.use('/auth', authRouter);
+  app.use('/account', requireAuth, accountRouter);
   app.use('/bills', requireAuth, billsRouter);
 
   const onError: ErrorRequestHandler = (err, _req, res, _next) => {

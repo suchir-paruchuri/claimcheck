@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api, type BillSummary } from '../api';
+import { useSession } from '../App';
 import { money, usePolling } from '../lib';
 
 const STATUS_TEXT: Record<BillSummary['status'], string> = {
@@ -14,6 +15,8 @@ const STATUS_TEXT: Record<BillSummary['status'], string> = {
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const { user } = useSession();
+  const firstName = user?.name.trim().split(/\s+/)[0];
   const input = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string>();
@@ -37,7 +40,10 @@ export default function Dashboard() {
   return (
     <div className="dashboard">
       <div className="dashboard-head">
-        <h1>Your bills</h1>
+        <div>
+          <h1>{firstName ? `Hi, ${firstName}!` : 'Welcome back!'}</h1>
+          <p className="greeting-sub">Upload an itemized bill, or pick up where you left off.</p>
+        </div>
         <div className="upload">
           <input ref={input} type="file" accept="application/pdf" hidden onChange={(e) => upload(e.target.files?.[0])} />
           <button className="primary" onClick={() => input.current?.click()} disabled={uploading}>
@@ -48,6 +54,7 @@ export default function Dashboard() {
         </div>
       </div>
 
+      <h2 className="list-heading">Your bills</h2>
       {error && <p className="form-error">Your bills couldn't be loaded: {error}</p>}
       {bills && bills.length === 0 && (
         <div className="empty">

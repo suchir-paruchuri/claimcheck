@@ -36,6 +36,10 @@ export const httpApi: Api = {
   login: (email, password) => request('/auth/login', json('POST', { email, password })),
   signup: (name, email, password) => request('/auth/signup', json('POST', { name, email, password })),
   logout: () => request('/auth/logout', json('POST')),
+  updateName: (name) => request<User>('/account/name', json('PATCH', { name })),
+  changeEmail: (email, currentPassword) => request<User>('/account/email', json('PATCH', { email, currentPassword })),
+  changePassword: (currentPassword, newPassword) => request<User>('/account/password', json('PATCH', { currentPassword, newPassword })),
+  deleteAccount: (currentPassword) => request('/account', json('DELETE', { currentPassword })),
   listBills: () => request<BillSummary[]>('/bills'),
 
   async uploadBill(file) {

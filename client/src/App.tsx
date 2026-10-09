@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import { Link, Navigate, Route, Routes, useNavigate } from 'react-router-dom';
+import { Link, NavLink, Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import { api, isDemo, type User } from './api';
+import AccountPage from './pages/AccountPage';
 import AuthPage from './pages/AuthPage';
 import BillPage from './pages/BillPage';
 import Dashboard from './pages/Dashboard';
@@ -29,6 +30,7 @@ export default function App() {
           <Route path="/signin" element={user ? <Navigate to="/" replace /> : <AuthPage />} />
           <Route path="/" element={user ? <Dashboard /> : <Navigate to="/signin" replace />} />
           <Route path="/bills/:id" element={user ? <BillPage /> : <Navigate to="/signin" replace />} />
+          <Route path="/account" element={user ? <AccountPage /> : <Navigate to="/signin" replace />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
@@ -51,16 +53,19 @@ function Header() {
       </Link>
       {isDemo && <span className="demo-tag">Demo with a sample bill</span>}
       {user && (
-        <button
-          className="link-button"
-          onClick={async () => {
-            await api.logout();
-            setUser(null);
-            navigate('/signin');
-          }}
-        >
-          Sign out
-        </button>
+        <nav className="masthead-nav" aria-label="Account">
+          <NavLink to="/account" className="nav-link">Account</NavLink>
+          <button
+            className="link-button"
+            onClick={async () => {
+              await api.logout();
+              setUser(null);
+              navigate('/signin');
+            }}
+          >
+            Sign out
+          </button>
+        </nav>
       )}
     </header>
   );

@@ -140,6 +140,10 @@ All `/bills` routes require the session cookie, and every query filters by the s
 |---|---|---|
 | POST | `/auth/signup`, `/auth/login`, `/auth/logout` | bcrypt-hashed passwords, JWT in an httpOnly cookie, rate-limited |
 | GET | `/auth/me` | current user |
+| PATCH | `/account/name` | change display name |
+| PATCH | `/account/email` | change email (requires current password) |
+| PATCH | `/account/password` | change password (requires current password; signs out other sessions) |
+| DELETE | `/account` | delete the account, its bills, and uploaded files (requires current password) |
 | GET | `/bills` | dashboard list |
 | POST | `/bills` | create bill, returns presigned upload URL |
 | POST | `/bills/:id/uploaded` | queue extraction |

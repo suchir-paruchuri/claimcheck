@@ -4,7 +4,8 @@
 import type { Api, Bill, Finding, LineItem, User } from './types';
 import demoAudit from './demoAudit.json';
 
-const user: User = { id: 'demo', email: 'demo@claimcheck.app', name: 'Jordan Rivera' };
+const user: User = { id: 'demo', email: 'demo@claimcheck.app', name: 'Jordan Rivera', createdAt: new Date().toISOString() };
+const DEMO_PASSWORD = 'demo-password';
 let signedIn = false;
 const bills = new Map<string, Bill>();
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -69,6 +70,24 @@ export const demoApi: Api = {
   async login() { await wait(300); signedIn = true; return user; },
   async signup(name) { await wait(300); signedIn = true; user.name = name || user.name; return user; },
   async logout() { signedIn = false; },
+  async updateName(name) { await wait(250); user.name = name.trim(); return { ...user }; },
+  async changeEmail(email, currentPassword) {
+    await wait(250);
+    if (currentPassword !== DEMO_PASSWORD) throw new Error('Your current password is incorrect');
+    user.email = email.trim().toLowerCase();
+    return { ...user };
+  },
+  async changePassword(currentPassword) {
+    await wait(250);
+    if (currentPassword !== DEMO_PASSWORD) throw new Error('Your current password is incorrect');
+    return { ...user };
+  },
+  async deleteAccount(currentPassword) {
+    await wait(300);
+    if (currentPassword !== DEMO_PASSWORD) throw new Error('Your current password is incorrect');
+    bills.clear();
+    signedIn = false;
+  },
   async listBills() { await wait(200); return [...bills.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt)); },
 
   async uploadBill(file) {

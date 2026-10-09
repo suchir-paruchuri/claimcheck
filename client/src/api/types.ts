@@ -10,6 +10,7 @@ export interface User {
   id: string;
   email: string;
   name: string;
+  createdAt?: string;
 }
 
 export interface LineItem {
@@ -81,6 +82,10 @@ export interface Api {
   login(email: string, password: string): Promise<User>;
   signup(name: string, email: string, password: string): Promise<User>;
   logout(): Promise<void>;
+  updateName(name: string): Promise<User>;
+  changeEmail(email: string, currentPassword: string): Promise<User>;
+  changePassword(currentPassword: string, newPassword: string): Promise<User>;
+  deleteAccount(currentPassword: string): Promise<void>;
   listBills(): Promise<BillSummary[]>;
   uploadBill(file: File): Promise<string>;
   getBill(id: string): Promise<Bill>;
