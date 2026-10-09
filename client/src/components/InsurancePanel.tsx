@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { api, type Bill, type Eob } from '../api';
+import { api, isDemo, type Bill, type Eob } from '../api';
 import { money, shortDate } from '../lib';
 
 const STATUS_TEXT: Record<Eob['status'], string> = {
@@ -105,7 +105,16 @@ export default function InsurancePanel({ bill, onChange }: { bill: Bill; onChang
         </div>
       ))}
 
-      {eobs.length < 5 && (
+      {isDemo && eobs.length === 0 && (
+        // The demo has no backend, so it runs on a sample statement instead of an upload.
+        <div className="actions">
+          <button className="primary" disabled={busy} onClick={() => upload(new File([], 'sample-insurance-eob.pdf', { type: 'application/pdf' }))}>
+            {busy ? 'Adding…' : 'Add the sample insurance statement'}
+          </button>
+          <a href="/samples/sample-insurance-eob.pdf" target="_blank" rel="noreferrer">View the statement (PDF)</a>
+        </div>
+      )}
+      {!isDemo && eobs.length < 5 && (
         <div className="actions">
           <input ref={input} type="file" accept="application/pdf" hidden onChange={(e) => upload(e.target.files?.[0])} />
           <button className={eobs.length ? '' : 'primary'} onClick={() => input.current?.click()} disabled={busy}>

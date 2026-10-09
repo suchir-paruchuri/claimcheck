@@ -103,6 +103,8 @@ npm run dev             # http://localhost:5173
 VITE_DEMO=1 npm run dev # no backend: a sample bill whose findings come from the real rules engine and 2026 CMS data
 ```
 
+The demo build is deployed on Vercel (`client/vercel.json`, project root `client`, environment variable `VITE_DEMO=1`). It runs entirely in the browser on a sample bill and insurance statement, both viewable as PDFs, so it needs no API, database, or Gemini key.
+
 The React app walks a patient through upload, a review screen that marks lines that couldn't be confirmed against the bill, the annotated results (errors struck through in red, pricing concerns highlighted, with the math behind each one), and an editable dispute letter.
 
 ### Loading Medicare data
