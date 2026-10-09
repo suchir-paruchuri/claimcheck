@@ -57,6 +57,7 @@ export const httpApi: Api = {
   requestLetter: (id) => request(`/bills/${id}/letter`, json('POST')),
   saveLetter: (id, text) => request(`/bills/${id}/letter`, json('PUT', { text })),
   deleteBill: (id) => request(`/bills/${id}`, { method: 'DELETE' }),
+  renameBill: (id, name) => request(`/bills/${id}/name`, json('PATCH', { name })),
 
   async uploadEob(billId, file) {
     const { id, uploadUrl } = await request<{ id: string; uploadUrl: string }>(`/bills/${billId}/eobs`, json('POST', { filename: file.name }));

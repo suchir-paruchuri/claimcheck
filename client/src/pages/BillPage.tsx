@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api, type Bill } from '../api';
-import { usePolling } from '../lib';
+import { billTitle, usePolling } from '../lib';
 import ResultsView from '../components/ResultsView';
 import ReviewView from '../components/ReviewView';
 
@@ -34,10 +34,7 @@ export default function BillPage() {
       <nav className="crumbs">
         <Link to="/">Your bills</Link>
       </nav>
-      <div className="bill-title">
-        <h1>{bill.providerName ?? bill.originalFilename ?? 'Medical bill'}</h1>
-        {bill.accountNumber && <span className="bill-meta">Account {bill.accountNumber}</span>}
-      </div>
+      <BillTitle bill={bill} onRenamed={refresh} />
 
       <ol className="progress" aria-label="Progress">
         {STEPS.map((s, i) => {
@@ -72,6 +69,70 @@ export default function BillPage() {
         {bill.fileDeleted && <p className="hint">The original PDF was deleted after 30 days to protect your privacy. Your results are still here.</p>}
         <button className="link-button danger" onClick={remove}>Delete this bill</button>
       </footer>
+    </div>
+  );
+}
+
+/** The bill's name, with an inline editor so the patient can call it something they'll recognize. */
+function BillTitle({ bill, onRenamed }: { bill: Bill; onRenamed: () => void }) {
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string>();
+  const fallback = bill.providerName || bill.originalFilename || 'Medical bill';
+
+  function start() {
+    setName(bill.displayName ?? '');
+    setError(undefined);
+    setEditing(true);
+  }
+
+  async function save(e: FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError(undefined);
+    try {
+      await api.renameBill(bill._id, name);
+      setEditing(false);
+      onRenamed();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'The name couldn\u2019t be saved.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (editing) {
+    return (
+      <form className="rename" onSubmit={save}>
+        <label>
+          Bill name <span className="hint">leave blank to use "{fallback}"</span>
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => e.key === 'Escape' && setEditing(false)}
+            placeholder={fallback}
+            maxLength={100}
+            autoFocus
+          />
+        </label>
+        <div className="actions">
+          <button className="primary" disabled={busy}>{busy ? 'Saving…' : 'Save name'}</button>
+          <button type="button" onClick={() => setEditing(false)}>Cancel</button>
+        </div>
+        {error && <p className="form-error" role="alert">{error}</p>}
+      </form>
+    );
+  }
+
+  return (
+    <div className="bill-title">
+      <h1>{billTitle(bill)}</h1>
+      <button className="link-button small" onClick={start}>Rename</button>
+      {bill.displayName && (bill.providerName || bill.accountNumber) && (
+        <span className="bill-meta">{[bill.providerName, bill.accountNumber && `Account ${bill.accountNumber}`].filter(Boolean).join(', ')}</span>
+      )}
+      {!bill.displayName && bill.accountNumber && <span className="bill-meta">Account {bill.accountNumber}</span>}
     </div>
   );
 }

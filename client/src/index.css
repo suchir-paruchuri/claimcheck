@@ -125,7 +125,11 @@ input[aria-invalid='true'] { border-color: var(--error); }
 
 /* ---------- bill page ---------- */
 .crumbs { margin: 1rem 0 0.25rem; font-size: 0.95rem; }
-.bill-title { display: flex; align-items: baseline; gap: 1rem; flex-wrap: wrap; }
+.bill-title { display: flex; align-items: baseline; gap: 0.5rem 1rem; flex-wrap: wrap; }
+.bill-title h1 { margin: 0; }
+.rename { display: grid; gap: 0.75rem; max-width: 30rem; margin-top: 0.25rem; }
+.rename label { display: grid; gap: 0.35rem; font-weight: 600; }
+.rename .hint { font-weight: 400; }
 .progress { display: flex; list-style: none; margin: 1.25rem 0 2rem; padding: 0; gap: 0.25rem; counter-reset: step; }
 .step { flex: 1; counter-increment: step; font-size: 0.85rem; color: var(--ink-2); padding-top: 0.5rem; border-top: 3px solid var(--rule); }
 .step::before { content: counter(step) '. '; }

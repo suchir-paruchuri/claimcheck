@@ -130,6 +130,7 @@ describe('bill ownership', () => {
       bob.post(`/bills/${id}/letter`),
       bob.put(`/bills/${id}/letter`).send({ text: 'hijacked' }),
       bob.post(`/bills/${id}/eobs`).send({ filename: 'eob.pdf' }),
+      bob.patch(`/bills/${id}/name`).send({ name: 'Renamed by Bob' }),
       bob.delete(`/bills/${id}`),
     ];
     for (const res of await Promise.all(attempts)) expect(res.status).toBe(404);
@@ -153,6 +154,16 @@ describe('bill ownership', () => {
     expect((await bob.delete(`/bills/${id}/eobs/${eobId}`)).status).toBe(404);
     expect((await alice.post(`/bills/${id}/eobs/${eobId}/uploaded`)).status).toBe(202);
     expect((await Bill.findById(id).lean())!.eobs).toHaveLength(1);
+  });
+
+  it('renames a bill, and an empty name restores the default', async () => {
+    const alice = await signedInAgent('alice@example.com');
+    const id = await createBill(alice);
+    expect((await alice.patch(`/bills/${id}/name`).send({ name: '  ER visit, September  ' })).body.displayName).toBe('ER visit, September');
+    expect((await alice.get('/bills')).body[0].displayName).toBe('ER visit, September');
+    await alice.patch(`/bills/${id}/name`).send({ name: '' });
+    expect((await alice.get(`/bills/${id}`)).body.displayName).toBeUndefined();
+    expect((await alice.patch(`/bills/${id}/name`).send({ name: 'x'.repeat(101) })).status).toBe(400);
   });
 
   it("lists only the signed-in user's bills", async () => {

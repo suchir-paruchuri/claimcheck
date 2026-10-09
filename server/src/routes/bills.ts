@@ -24,7 +24,7 @@ function findOwnedBill(req: Request) {
 
 billsRouter.get('/', async (req, res) => {
   const bills = await Bill.find({ userId: userId(req) })
-    .select('status billType originalFilename providerName totals letter.status fileDeleted createdAt')
+    .select('status billType displayName originalFilename providerName totals letter.status fileDeleted createdAt')
     .sort({ createdAt: -1 })
     .lean();
   res.json(bills);
@@ -108,6 +108,18 @@ billsRouter.put('/:id/review', async (req, res) => {
   await bill.save();
   await enqueue(JOBS.analyze, bill.id);
   res.status(202).json({ billType: bill.billType, reasons: bill.classificationReasons });
+});
+
+// Rename how the bill appears in the list. An empty name goes back to the default
+// (the provider name read from the bill, or the file name).
+billsRouter.patch('/:id/name', async (req, res) => {
+  const parsed = z.object({ name: z.string().trim().max(100, 'Name must be at most 100 characters') }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0].message });
+  const bill = await findOwnedBill(req);
+  if (!bill) return res.status(404).json({ error: 'Bill not found' });
+  bill.displayName = parsed.data.name || undefined;
+  await bill.save();
+  res.json({ displayName: bill.displayName ?? null });
 });
 
 billsRouter.post('/:id/letter', async (req, res) => {

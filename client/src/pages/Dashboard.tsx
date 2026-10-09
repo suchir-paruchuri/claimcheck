@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api, type BillSummary } from '../api';
 import { useSession } from '../App';
-import { money, usePolling } from '../lib';
+import { billTitle, money, usePolling } from '../lib';
 
 const STATUS_TEXT: Record<BillSummary['status'], string> = {
   pending: 'Uploading',
@@ -12,6 +12,9 @@ const STATUS_TEXT: Record<BillSummary['status'], string> = {
   complete: 'Audit complete',
   failed: 'Couldn’t be read',
 };
+
+const disputed = (b: BillSummary) =>
+  (b.totals?.billingErrors ?? 0) + (b.totals?.pricingConcerns ?? 0) + (b.totals?.insuranceIssues ?? 0);
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -66,16 +69,14 @@ export default function Dashboard() {
           {bills.map((b) => (
             <li key={b._id}>
               <Link to={`/bills/${b._id}`} className="bill-row">
-                <span className="bill-name">{b.providerName ?? b.originalFilename ?? 'Medical bill'}</span>
+                <span className="bill-name">{billTitle(b)}</span>
+                <span className={`status status-${b.status}`}>{STATUS_TEXT[b.status]}</span>
                 <span className="bill-meta">
                   Uploaded {new Date(b.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                 </span>
-                <span className={`status status-${b.status}`}>{STATUS_TEXT[b.status]}</span>
                 <span className="bill-amount">
                   {b.status === 'complete' && b.totals ? (
-                    b.totals.billingErrors + b.totals.pricingConcerns > 0 ? (
-                      <><strong>{money(b.totals.billingErrors + b.totals.pricingConcerns)}</strong> to dispute</>
-                    ) : 'No issues found'
+                    disputed(b) > 0 ? <><strong>{money(disputed(b))}</strong> to dispute</> : 'No issues found'
                   ) : ''}
                 </span>
               </Link>

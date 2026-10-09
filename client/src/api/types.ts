@@ -44,6 +44,7 @@ export interface BillSummary {
   _id: string;
   status: BillStatus;
   billType?: BillType;
+  displayName?: string;
   originalFilename?: string;
   providerName?: string;
   totals?: { billed: number; billingErrors: number; pricingConcerns: number; insuranceIssues?: number };
@@ -128,6 +129,7 @@ export interface Api {
   requestLetter(id: string): Promise<void>;
   saveLetter(id: string, text: string): Promise<void>;
   deleteBill(id: string): Promise<void>;
+  renameBill(id: string, name: string): Promise<void>;
   uploadEob(billId: string, file: File): Promise<void>;
   retryEob(billId: string, eobId: string): Promise<void>;
   deleteEob(billId: string, eobId: string): Promise<void>;

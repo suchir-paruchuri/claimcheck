@@ -83,6 +83,8 @@ const billSchema = new Schema(
     fileKey: { type: String, required: true },
     fileDeleted: { type: Boolean, default: false },
     originalFilename: String,
+    // A name the patient chose for this bill; shown instead of the provider name or filename.
+    displayName: String,
     providerName: String,
     accountNumber: String,
     payer: String,

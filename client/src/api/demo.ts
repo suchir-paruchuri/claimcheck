@@ -174,6 +174,7 @@ export const demoApi: Api = {
   },
   async saveLetter(id, text) { const b = bills.get(id)!; b.letter = { ...b.letter!, text }; },
   async deleteBill(id) { bills.delete(id); },
+  async renameBill(id, name) { await wait(200); const b = bills.get(id)!; b.displayName = name.trim() || undefined; },
 
   async uploadEob(billId, file) {
     await wait(600);

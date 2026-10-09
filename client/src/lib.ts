@@ -34,6 +34,10 @@ export function usePolling<T>(load: () => Promise<T>, ms: number, active: (data:
   return { data, error, refresh: () => setTick((n) => n + 1) };
 }
 
+/** The name shown for a bill: the patient's own name for it, else the provider, else the file name. */
+export const billTitle = (b: { displayName?: string; providerName?: string; originalFilename?: string }) =>
+  b.displayName || b.providerName || b.originalFilename || 'Medical bill';
+
 export const BILL_TYPE_LABEL: Record<string, string> = {
   physician: "Doctor's office bill",
   outpatient: 'Hospital outpatient bill',
