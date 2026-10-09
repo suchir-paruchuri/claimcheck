@@ -1,5 +1,5 @@
 import type { BillForAudit, Finding, MueLimit, NcciVersion } from '../../domain/types';
-import { findingFactory } from '../util';
+import { findingFactory, money } from '../util';
 
 /**
  * Units above the Medically Unlikely Edit for a code. MAI 1 limits apply to each claim line;
@@ -18,12 +18,13 @@ export function checkUnitLimits(bill: BillForAudit, limits: MueLimit[], version:
     if (mue.mai === 1) {
       if (item.units > mue.limit) {
         const excess = item.units - mue.limit;
+        const amount = (item.charge / item.units) * excess;
         findings.push(
           make({
             category: 'billing_error',
             lineItemIds: [item.id],
-            amount: (item.charge / item.units) * excess,
-            message: `Code ${item.code} is billed with ${item.units} units on one line; the CMS limit is ${mue.limit} per line.`,
+            amount,
+            message: `Code ${item.code} is billed with ${item.units} units on one line; the CMS limit is ${mue.limit} per line. The ${excess} extra unit(s) account for ${money(amount)}.`,
             evidence: { rule: 'Medically Unlikely Edit', code: item.code, limit: mue.limit, billedUnits: item.units, appliesTo: 'claim line', dataVersion: mue.dataVersion },
           }),
         );
@@ -39,12 +40,13 @@ export function checkUnitLimits(bill: BillForAudit, limits: MueLimit[], version:
     const units = items.reduce((s, i) => s + i.units, 0);
     if (units <= mue.limit) continue;
     const charge = items.reduce((s, i) => s + i.charge, 0);
+    const amount = (charge / units) * (units - mue.limit);
     findings.push(
       make({
         category: 'billing_error',
         lineItemIds: items.map((i) => i.id),
-        amount: (charge / units) * (units - mue.limit),
-        message: `Code ${items[0].code} is billed for ${units} units on ${items[0].dateOfService}; the CMS limit is ${mue.limit} per day.`,
+        amount,
+        message: `Code ${items[0].code} is billed for ${units} units on ${items[0].dateOfService}; the CMS limit is ${mue.limit} per day. The ${units - mue.limit} extra unit(s) account for ${money(amount)}.`,
         evidence: { rule: 'Medically Unlikely Edit', code: items[0].code, limit: mue.limit, billedUnits: units, appliesTo: 'date of service', dataVersion: mue.dataVersion },
       }),
     );

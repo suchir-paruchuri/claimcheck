@@ -16,6 +16,7 @@ Rules:
 const LETTER_PROMPT = `Write one short, factual paragraph for each finding below, for a patient's billing dispute letter.
 Rules:
 - Use only the facts in the finding. Do not add charges, amounts, or claims that are not there.
+- "amount" is the dollar amount in dispute, which can be less than the line's full charge. Describe it that way.
 - Write any dollar amount exactly as it appears in the finding's amount or evidence, formatted like $1,234.56.
 - For "billing_error" findings, ask for the charge to be corrected or removed.
 - For "pricing_concern" findings, ask the provider to justify or reduce the charge; do not call it an error.
