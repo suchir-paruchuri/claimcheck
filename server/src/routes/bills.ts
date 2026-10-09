@@ -45,6 +45,10 @@ billsRouter.post('/:id/uploaded', async (req, res) => {
   const bill = await findOwnedBill(req);
   if (!bill) return res.status(404).json({ error: 'Bill not found' });
   if (bill.status !== 'pending' && bill.status !== 'failed') return res.status(409).json({ error: `Bill is already ${bill.status}` });
+  // Reset a failed bill before queueing, so the page shows it as in progress and keeps polling.
+  bill.status = 'pending';
+  bill.error = undefined;
+  await bill.save();
   await enqueue(JOBS.extract, bill.id);
   res.status(202).json({ status: 'queued' });
 });

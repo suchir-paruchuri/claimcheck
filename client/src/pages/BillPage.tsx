@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api, type Bill } from '../api';
 import { usePolling } from '../lib';
@@ -56,7 +57,7 @@ export default function BillPage() {
           <h2>This bill couldn't be read</h2>
           <p>{bill.error ?? 'Something went wrong while reading the file.'}</p>
           <p>Make sure the PDF is an itemized bill with codes for each charge, not a summary statement.</p>
-          <button className="primary" onClick={async () => { await api.retryBill(bill._id); refresh(); }}>Try again</button>
+          <RetryButton billId={bill._id} onRetried={refresh} />
         </div>
       ) : bill.status === 'awaiting_review' ? (
         <ReviewView bill={bill} onSubmitted={refresh} />
@@ -69,6 +70,29 @@ export default function BillPage() {
         <button className="link-button danger" onClick={remove}>Delete this bill</button>
       </footer>
     </div>
+  );
+}
+
+function RetryButton({ billId, onRetried }: { billId: string; onRetried: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string>();
+  async function retry() {
+    setBusy(true);
+    setError(undefined);
+    try {
+      await api.retryBill(billId);
+      onRetried();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'The bill couldn\u2019t be restarted.');
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <>
+      <button className="primary" onClick={retry} disabled={busy}>{busy ? 'Restarting…' : 'Try again'}</button>
+      {error && <p className="form-error" role="alert">{error}</p>}
+    </>
   );
 }
 
