@@ -125,6 +125,8 @@ export interface Api {
   uploadBill(file: File): Promise<string>;
   getBill(id: string): Promise<Bill>;
   retryBill(id: string): Promise<void>;
+  /** Starts reading a bill whose file is uploaded (the demo waits for the patient to click Next). */
+  startExtraction(id: string): Promise<void>;
   submitReview(id: string, payload: ReviewPayload): Promise<void>;
   requestLetter(id: string): Promise<void>;
   saveLetter(id: string, text: string): Promise<void>;

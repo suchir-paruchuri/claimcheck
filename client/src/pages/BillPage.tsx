@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { api, type Bill } from '../api';
+import { api, isDemo, type Bill } from '../api';
+import { SAMPLE_BILL_URL } from '../api/demo';
 import { billTitle, usePolling } from '../lib';
 import ResultsView from '../components/ResultsView';
 import ReviewView from '../components/ReviewView';
@@ -9,9 +10,11 @@ const STEPS = ['Upload', 'Read line items', 'Your review', 'Audit', 'Results'];
 const stepIndex = (s: Bill['status']) =>
   ({ pending: 0, extracting: 1, awaiting_review: 2, analyzing: 3, complete: 4, failed: 1 })[s];
 
+// In the demo, a pending bill is waiting for the visitor to click Next, not for the server.
 const isWorking = (b?: Bill) =>
   !b ||
-  ['pending', 'extracting', 'analyzing'].includes(b.status) ||
+  (b.status === 'pending' && !isDemo) ||
+  ['extracting', 'analyzing'].includes(b.status) ||
   b.letter?.status === 'drafting' ||
   !!b.eobs?.some((e) => e.status === 'pending' || e.status === 'extracting');
 
@@ -48,7 +51,9 @@ export default function BillPage() {
         })}
       </ol>
 
-      {bill.status === 'pending' || bill.status === 'extracting' ? (
+      {isDemo && bill.status === 'pending' ? (
+        <UploadedPreview bill={bill} onStarted={refresh} />
+      ) : bill.status === 'pending' || bill.status === 'extracting' ? (
         <Working title="Reading your bill" body="Pulling out each charge and checking it against the bill itself and Medicare's code list. This usually takes under a minute." />
       ) : bill.status === 'analyzing' ? (
         <Working title="Checking your charges" body="Running every audit check that applies to this kind of bill." />
@@ -157,6 +162,33 @@ function RetryButton({ billId, onRetried }: { billId: string; onRetried: () => v
       <button className="primary" onClick={retry} disabled={busy}>{busy ? 'Restarting…' : 'Try again'}</button>
       {error && <p className="form-error" role="alert">{error}</p>}
     </>
+  );
+}
+
+/** Demo only: shows the uploaded sample bill and waits for the visitor to continue. */
+function UploadedPreview({ bill, onStarted }: { bill: Bill; onStarted: () => void }) {
+  const [busy, setBusy] = useState(false);
+  async function next() {
+    setBusy(true);
+    await api.startExtraction(bill._id);
+    onStarted();
+  }
+  return (
+    <section className="uploaded">
+      <div className="uploaded-head">
+        <div>
+          <h2>Bill uploaded</h2>
+          <p className="hint">
+            {bill.originalFilename} &middot; <a href={SAMPLE_BILL_URL} target="_blank" rel="noreferrer">Open in a new tab</a>
+          </p>
+        </div>
+        <button className="primary" onClick={next} disabled={busy}>{busy ? 'Starting…' : 'Next: read line items'}</button>
+      </div>
+      <a href={SAMPLE_BILL_URL} target="_blank" rel="noreferrer" className="bill-preview">
+        <img src={SAMPLE_BILL_URL.replace(/\.pdf$/, '.png')} alt="The uploaded itemized bill from Lakeshore Family Medicine, listing eight charges" />
+      </a>
+      <p className="hint">Next, ClaimCheck reads every charge on the bill, then checks each one against the bill's own text and Medicare's code list.</p>
+    </section>
   );
 }
 

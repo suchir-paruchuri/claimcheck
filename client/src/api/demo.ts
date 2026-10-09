@@ -7,6 +7,7 @@ import demoEob from './demoEob.json';
 
 const user: User = { id: 'demo', email: 'demo@claimcheck.app', name: 'Jordan Rivera', createdAt: new Date().toISOString() };
 const DEMO_PASSWORD = 'demo-password';
+export const SAMPLE_BILL_URL = '/samples/sample-itemized-bill.pdf';
 let signedIn = false;
 const bills = new Map<string, Bill>();
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -105,18 +106,27 @@ export const demoApi: Api = {
   async uploadBill(file) {
     await wait(600);
     const id = `bill-${bills.size + 1}`;
+    // The sample bill waits on the Upload step until the visitor clicks Next (startExtraction).
     bills.set(id, {
-      _id: id, status: 'extracting', originalFilename: file.name, providerName: 'Lakeshore Family Medicine', accountNumber: '48213-07',
+      _id: id, status: 'pending', originalFilename: file.name,
       createdAt: new Date().toISOString(), lineItems: [], findings: [], letter: { status: 'none' },
     });
-    advance(id, 'awaiting_review', 3500, (b) => {
-      b.lineItems = sampleLines();
-      b.statedTotal = 1031;
-      b.amountDue = 612;
-      b.totalsReconcile = true;
-      b.suggestedBillType = 'physician';
-    });
     return id;
+  },
+
+  async startExtraction(id) {
+    await wait(300);
+    const b = bills.get(id)!;
+    b.status = 'extracting';
+    advance(id, 'awaiting_review', 3500, (bill) => {
+      bill.providerName = 'Lakeshore Family Medicine';
+      bill.accountNumber = '48213-07';
+      bill.lineItems = sampleLines();
+      bill.statedTotal = 1031;
+      bill.amountDue = 612;
+      bill.totalsReconcile = true;
+      bill.suggestedBillType = 'physician';
+    });
   },
 
   async getBill(id) {

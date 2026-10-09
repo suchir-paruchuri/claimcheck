@@ -50,7 +50,7 @@ export default function Dashboard() {
         {isDemo ? (
           <div className="upload">
             <button className="primary" onClick={() => upload(new File([], 'sample-itemized-bill.pdf', { type: 'application/pdf' }))} disabled={uploading}>
-              {uploading ? 'Starting…' : 'Audit the sample bill'}
+              {uploading ? 'Uploading…' : 'Audit the sample bill'}
             </button>
             <p className="hint">
               This demo runs without a backend, so it uses a sample bill instead of uploads.{' '}
@@ -82,7 +82,7 @@ export default function Dashboard() {
             <li key={b._id}>
               <Link to={`/bills/${b._id}`} className="bill-row">
                 <span className="bill-name">{billTitle(b)}</span>
-                <span className={`status status-${b.status}`}>{STATUS_TEXT[b.status]}</span>
+                <span className={`status status-${b.status}`}>{isDemo && b.status === 'pending' ? 'Uploaded' : STATUS_TEXT[b.status]}</span>
                 <span className="bill-meta">
                   Uploaded {new Date(b.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                 </span>

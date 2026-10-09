@@ -66,6 +66,12 @@ input:focus, textarea:focus { border-color: var(--action); }
 .masthead-nav { margin-left: auto; display: flex; align-items: center; gap: 1.25rem; }
 .nav-link { color: var(--ink); font-weight: 600; text-decoration: none; }
 .nav-link:hover, .nav-link.active { text-decoration: underline; text-underline-offset: 3px; }
+.uploaded { display: grid; gap: 1rem; }
+.uploaded-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 1rem; flex-wrap: wrap; }
+.uploaded-head h2 { margin: 0 0 0.25rem; }
+.uploaded-head .hint { margin: 0; }
+.bill-preview { display: block; max-width: 860px; border: 1px solid var(--rule); border-radius: 6px; background: #fff; overflow: hidden; box-shadow: 0 1px 3px rgb(0 0 0 / 0.06); }
+.bill-preview img { display: block; width: 100%; height: auto; }
 .demo-tag { font-size: 0.85rem; color: var(--concern); background: var(--highlight); padding: 0.15rem 0.5rem; border-radius: 3px; }
 .page { max-width: 1120px; margin: 0 auto; padding: 0.5rem 1rem 4rem; }
 
