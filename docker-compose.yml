@@ -1,0 +1,44 @@
+# Starts MongoDB, the API, and the job worker:  docker compose up --build
+# Secrets come from server/.env (copy server/.env.example). The React app runs separately.
+
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    volumes:
+      - mongo-data:/data/db # imported CMS data and bills survive restarts
+    ports:
+      - "27017:27017" # optional: lets local tools like Compass connect
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  api:
+    build: ./server
+    restart: unless-stopped
+    env_file: ./server/.env
+    environment:
+      MONGODB_URI: mongodb://mongo:27017/claimcheck
+    ports:
+      - "4000:4000"
+    volumes:
+      - ./data:/data:ro # CMS files for the one-off import commands (see README)
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+  worker:
+    build: ./server
+    restart: unless-stopped
+    command: ["node", "dist/worker.js"]
+    env_file: ./server/.env
+    environment:
+      MONGODB_URI: mongodb://mongo:27017/claimcheck
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+volumes:
+  mongo-data:

@@ -1,12 +1,13 @@
 import mongoose from 'mongoose';
 import { config } from './config';
-import { agenda } from './jobs/queue';
+import { getAgenda } from './jobs/queue';
 import { registerProcessors } from './jobs/processors';
 import { GeminiProvider } from './llm/gemini';
 
 async function main() {
   await mongoose.connect(config.mongoUri);
   registerProcessors(new GeminiProvider());
+  const agenda = getAgenda();
   await agenda.start();
   console.log('Worker started');
 

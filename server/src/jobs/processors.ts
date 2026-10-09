@@ -11,7 +11,7 @@ import { codesNeeded, ncciVersionFor, runAudit } from '../rules/engine';
 import { readPdfText } from '../services/pdfText';
 import { loadCmsDescriptions, loadReferenceData } from '../services/referenceData';
 import { downloadFile } from '../services/storage';
-import { agenda, JOBS, type BillJobData, type JobName } from './queue';
+import { getAgenda, JOBS, type BillJobData, type JobName } from './queue';
 
 const MAX_ATTEMPTS = 3;
 const RETRY_DELAYS_MS = [10_000, 40_000];
@@ -33,7 +33,7 @@ function withRetries(name: JobName, handler: (billId: string) => Promise<void>) 
       const message = err instanceof Error ? err.message : String(err);
       console.error(`[${name}] bill ${billId} attempt ${attempt} failed: ${message}`);
       if (!(err instanceof PermanentError) && attempt < MAX_ATTEMPTS) {
-        await agenda.schedule<BillJobData>(new Date(Date.now() + RETRY_DELAYS_MS[attempt - 1]), name, { billId, attempt: attempt + 1 });
+        await getAgenda().schedule<BillJobData>(new Date(Date.now() + RETRY_DELAYS_MS[attempt - 1]), name, { billId, attempt: attempt + 1 });
         return;
       }
       if (name === JOBS.letter) await Bill.updateOne({ _id: billId }, { 'letter.status': 'failed', error: message });
@@ -163,6 +163,7 @@ export async function draftLetter(billId: string, llm: LlmProvider) {
 }
 
 export function registerProcessors(llm: LlmProvider) {
+  const agenda = getAgenda();
   // Concurrency caps on the Gemini-backed jobs keep requests within the API's rate limits.
   agenda.define<BillJobData>(JOBS.extract, { concurrency: 2 }, withRetries(JOBS.extract, (id) => extractBill(id, llm)));
   agenda.define<BillJobData>(JOBS.analyze, { concurrency: 5 }, withRetries(JOBS.analyze, analyzeBill));

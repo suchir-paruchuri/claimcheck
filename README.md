@@ -31,16 +31,53 @@ Medical bill auditing and dispute assistant. A patient uploads an itemized bill;
 
 ## Running locally
 
-Requirements: Node 22, MongoDB 7, an S3 bucket, a Gemini API key.
+You need an S3 bucket and a Gemini API key either way. Copy `server/.env.example` to `server/.env` and fill it in.
+
+### With Docker (recommended)
+
+Requires Docker Desktop. One command starts MongoDB, the API, and the job worker:
+
+```bash
+docker compose up --build    # API on http://localhost:4000
+```
+
+The API and worker are the same image started with different commands. MongoDB data lives in a named volume, so imports and bills survive restarts. To load the CMS data, put the files under `data/` (layout below) and run the imports once, using the compiled scripts inside the container:
+
+```bash
+docker compose run --rm api node dist/import/importFeeSchedules.js \
+  --pfs /data/PPRRVU2026_Oct_nonQPP.csv --opps /data/OPPS_AddendumB_2026_Jul.csv --clfs /data/PUF_CLFS_CY2026_Q4V1.csv
+
+docker compose run --rm api node dist/import/importCodingRules.js \
+  --ncci-practitioner '/data/ncci/ccipra-v323r0-f*.txt' --ncci-hospital '/data/ncci/ccioph-v323r0-f*.txt' \
+  --mue-practitioner /data/ncci/MCR_MUE_PractitionerServices_Eff_10-01-2026.csv \
+  --mue-hospital /data/ncci/MCR_MUE_OutpatientHospitalServices_Eff_10-01-2026.csv
+```
+
+```
+data/
+  PPRRVU2026_Oct_nonQPP.csv
+  OPPS_AddendumB_2026_Jul.csv
+  PUF_CLFS_CY2026_Q4V1.csv
+  ncci/
+    ccipra-v323r0-f1.txt ... f4.txt
+    ccioph-v323r0-f1.txt ... f4.txt
+    MCR_MUE_PractitionerServices_Eff_10-01-2026.csv
+    MCR_MUE_OutpatientHospitalServices_Eff_10-01-2026.csv
+```
+
+### Without Docker
+
+Install MongoDB 7 and Node 22, then:
 
 ```bash
 cd server
-cp .env.example .env   # fill in values
 npm install
 npm test
 npm run dev            # API on :4000
-npm run dev:worker     # job worker
+npm run dev:worker     # job worker, in a second terminal
 ```
+
+The `npm run import:*` commands in the next section load the CMS data.
 
 ### Frontend
 
