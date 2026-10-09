@@ -3,6 +3,7 @@ import { config } from '../config';
 import type { BillForAudit, Finding } from '../domain/types';
 import { totalsReconcile, verifyItem } from '../extraction/verify';
 import { buildLetter, validateLetterSections } from '../letters/letter';
+import { AllModelsBusyError } from '../llm/modelChain';
 import { EobExtractionSchema, ExtractionSchema, type LlmProvider } from '../llm/provider';
 import { Bill } from '../models/Bill';
 import { User } from '../models/User';
@@ -42,6 +43,7 @@ function withRetries(name: JobName, handler: (billId: string, data: BillJobData)
       await handler(billId, job.attrs.data);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
+      if (err instanceof AllModelsBusyError) console.error(`[${name}] every model failed:`, err.attempts);
       console.error(`[${name}] bill ${billId} attempt ${attempt} failed: ${message}`);
       if (!isPermanent(err) && attempt < MAX_ATTEMPTS) {
         await getAgenda().schedule<BillJobData>(new Date(Date.now() + RETRY_DELAYS_MS[attempt - 1]), name, { ...job.attrs.data, attempt: attempt + 1 });
@@ -54,7 +56,11 @@ function withRetries(name: JobName, handler: (billId: string, data: BillJobData)
           { _id: billId, 'eobs.id': job.attrs.data.eobId },
           { $set: { 'eobs.$.status': 'failed', 'eobs.$.error': `We couldn't read this statement: ${message}` } },
         );
-      } else await Bill.updateOne({ _id: billId }, { status: 'failed', error: `We couldn't process this bill: ${message}` });
+      } else {
+        // The busy message already reads as a full sentence for the patient.
+        const error = err instanceof AllModelsBusyError ? message : `We couldn't process this bill: ${message}`;
+        await Bill.updateOne({ _id: billId }, { status: 'failed', error });
+      }
     }
   };
 }
@@ -91,7 +97,8 @@ export async function extractBill(billId: string, llm: LlmProvider) {
 
   const pdf = await downloadFile(bill.fileKey);
   const pageTexts = await readPdfText(pdf);
-  const parsed = ExtractionSchema.safeParse(await llm.extractBill(pdf));
+  const { data, model } = await llm.extractBill(pdf);
+  const parsed = ExtractionSchema.safeParse(data);
   if (!parsed.success) throw new Error('The extraction response did not match the expected format');
   const extraction = parsed.data;
   if (extraction.lineItems.length === 0) throw new PermanentError('No line items were found. Is this an itemized bill?');
@@ -122,6 +129,7 @@ export async function extractBill(billId: string, llm: LlmProvider) {
   bill.classificationReasons = suggestion.reasons;
   bill.status = 'awaiting_review';
   bill.set('timings.extractionMs', Date.now() - started);
+  bill.set('models.extraction', model);
   await bill.save();
 }
 
@@ -150,7 +158,8 @@ export async function extractEob(billId: string, eobId: string, llm: LlmProvider
 
   const pdf = await downloadFile(eob.fileKey);
   const pageTexts = await readPdfText(pdf);
-  const parsed = EobExtractionSchema.safeParse(await llm.extractEob(pdf));
+  const { data, model } = await llm.extractEob(pdf);
+  const parsed = EobExtractionSchema.safeParse(data);
   if (!parsed.success) throw new Error('The statement response did not match the expected format');
   if (parsed.data.lines.length === 0) throw new PermanentError('No service lines were found. Is this an Explanation of Benefits?');
 
@@ -166,6 +175,7 @@ export async function extractEob(billId: string, eobId: string, llm: LlmProvider
       foundInDocument: normalized.some((page) => page.includes(sourceText.toLowerCase().replace(/\s+/g, ' ').trim())),
     })),
     status: 'ready',
+    model,
   });
   await bill.save();
   // Results already shown? Re-run the audit so the comparison appears.
@@ -233,7 +243,8 @@ export async function draftLetter(billId: string, llm: LlmProvider) {
 
   let feedback: string[] = [];
   for (let i = 0; i < LETTER_VALIDATION_ATTEMPTS; i++) {
-    const validation = validateLetterSections(await llm.draftLetterSections(findings, feedback), findings);
+    const { data, model } = await llm.draftLetterSections(findings, feedback);
+    const validation = validateLetterSections(data, findings);
     if (validation.ok) {
       const user = await User.findById(bill.userId).select('name');
       const text = buildLetter(
@@ -246,7 +257,7 @@ export async function draftLetter(billId: string, llm: LlmProvider) {
         findings,
         validation.sections!,
       );
-      bill.set({ letter: { text, generatedAt: new Date(), status: 'ready' }, 'timings.letterMs': Date.now() - started });
+      bill.set({ letter: { text, generatedAt: new Date(), status: 'ready' }, 'timings.letterMs': Date.now() - started, 'models.letter': model });
       await bill.save();
       return;
     }

@@ -177,6 +177,12 @@ function ChecksSummary({ bill }: { bill: Bill }) {
         Prices are compared with Medicare's 2026 rates, not what your insurer agreed to pay, so a flagged price means
         "well above typical," not proof of overcharging. This isn't legal advice.
       </p>
+      {bill.models?.extraction && (
+        <p className="hint">
+          Bill read by {bill.models.extraction}
+          {bill.models.letter ? `; letter drafted by ${bill.models.letter}` : ''}.
+        </p>
+      )}
     </details>
   );
 }

@@ -3,7 +3,8 @@ import { z } from 'zod';
 import { config } from '../config';
 import type { Finding } from '../domain/types';
 import { letterSectionsJsonSchema } from '../letters/letter';
-import { EobExtractionSchema, ExtractionSchema, type LlmProvider } from './provider';
+import { ModelChain } from './modelChain';
+import { EobExtractionSchema, ExtractionSchema, type LlmProvider, type LlmResult } from './provider';
 
 const EXTRACTION_PROMPT = `You are reading an itemized medical bill. Return every billed line item as JSON.
 Rules:
@@ -33,15 +34,25 @@ Rules:
 
 export class GeminiProvider implements LlmProvider {
   private ai = new GoogleGenAI({ apiKey: config.gemini.apiKey });
+  private chain = new ModelChain(config.gemini.models);
 
-  private async generateJson(parts: object[], schema: unknown): Promise<unknown> {
-    const res = await this.ai.models.generateContent({
-      model: config.gemini.model,
-      contents: [{ role: 'user', parts }],
-      config: { responseMimeType: 'application/json', responseJsonSchema: schema, temperature: 0 },
+  /** Sends the request to the first model that answers; see ModelChain for the fallback rules. */
+  private async generateJson(parts: object[], schema: unknown): Promise<LlmResult> {
+    const { value, model } = await this.chain.run(async (model) => {
+      const res = await this.ai.models.generateContent({
+        model,
+        contents: [{ role: 'user', parts }],
+        config: {
+          responseMimeType: 'application/json',
+          responseJsonSchema: schema,
+          temperature: 0,
+          abortSignal: AbortSignal.timeout(config.gemini.timeoutMs),
+        },
+      });
+      if (!res.text) throw new Error(`${model} returned an empty response`);
+      return JSON.parse(res.text) as unknown;
     });
-    if (!res.text) throw new Error('Gemini returned an empty response');
-    return JSON.parse(res.text);
+    return { data: value, model };
   }
 
   extractBill(pdf: Uint8Array) {

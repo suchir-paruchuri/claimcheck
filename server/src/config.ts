@@ -1,5 +1,15 @@
 import 'dotenv/config';
 
+/** Flash models only, best first. Each has its own free-tier quota, so falling back also spreads the load. */
+const DEFAULT_GEMINI_MODELS = ['gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3-flash'];
+
+function geminiModels(): string[] {
+  // GEMINI_MODELS is a comma-separated chain; GEMINI_MODEL (one model) still works.
+  const raw = process.env.GEMINI_MODELS ?? process.env.GEMINI_MODEL;
+  const models = raw?.split(',').map((m) => m.trim()).filter(Boolean) ?? [];
+  return models.length ? [...new Set(models)] : DEFAULT_GEMINI_MODELS;
+}
+
 function required(name: string): string {
   const value = process.env[name];
   if (!value) throw new Error(`Missing required environment variable ${name}`);
@@ -17,7 +27,9 @@ export const config = {
     get apiKey() {
       return required('GEMINI_API_KEY');
     },
-    model: process.env.GEMINI_MODEL ?? 'gemini-3.8-flash',
+    models: geminiModels(),
+    // A request that hasn't answered by then counts as busy and moves to the next model.
+    timeoutMs: Number(process.env.GEMINI_TIMEOUT_MS ?? 120_000),
   },
   aws: {
     region: process.env.AWS_REGION ?? 'us-east-1',

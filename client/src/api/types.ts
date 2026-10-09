@@ -102,6 +102,8 @@ export interface Bill extends BillSummary {
   checksRun?: string[];
   checksSkipped?: { checkId: string; reason: string }[];
   benchmarkMultiplier?: number;
+  /** Which Gemini model read the bill and drafted the letter. */
+  models?: { extraction?: string; letter?: string };
   letter?: { status: 'none' | 'drafting' | 'ready' | 'failed'; text?: string; generatedAt?: string };
   error?: string;
 }

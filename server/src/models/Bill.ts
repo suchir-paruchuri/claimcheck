@@ -70,6 +70,8 @@ const eobSchema = new Schema(
     payer: String,
     claimNumber: String,
     lines: { type: [eobLineSchema], default: [] },
+    // The Gemini model that read this statement.
+    model: String,
     error: String,
   },
   { _id: false },
@@ -118,6 +120,8 @@ const billSchema = new Schema(
     letter: { text: String, generatedAt: Date, status: { type: String, enum: ['none', 'drafting', 'ready', 'failed'], default: 'none' } },
     error: String,
     timings: { extractionMs: Number, analysisMs: Number, letterMs: Number },
+    // Which Gemini model handled each step (the first in GEMINI_MODELS that answered).
+    models: { extraction: String, letter: String },
   },
   { timestamps: true, versionKey: false },
 );

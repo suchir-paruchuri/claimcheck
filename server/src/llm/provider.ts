@@ -49,7 +49,13 @@ export type EobExtraction = z.infer<typeof EobExtractionSchema>;
 
 /** Provider-agnostic interface, so Gemini can be swapped for another model later. */
 export interface LlmProvider {
-  extractBill(pdf: Uint8Array): Promise<unknown>;
-  extractEob(pdf: Uint8Array): Promise<unknown>;
-  draftLetterSections(findings: Finding[], feedback?: string[]): Promise<unknown>;
+  extractBill(pdf: Uint8Array): Promise<LlmResult>;
+  extractEob(pdf: Uint8Array): Promise<LlmResult>;
+  draftLetterSections(findings: Finding[], feedback?: string[]): Promise<LlmResult>;
+}
+
+/** The model's parsed JSON (validated by the caller) and which model produced it. */
+export interface LlmResult {
+  data: unknown;
+  model: string;
 }
