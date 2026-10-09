@@ -11,7 +11,7 @@ export function checkNotReceived(bill: BillForAudit): Finding[] {
         category: 'billing_error',
         lineItemIds: [i.id],
         amount: i.charge,
-        message: `The patient reports not receiving "${i.description}" (code ${i.code}) on ${i.dateOfService}, billed at ${money(i.charge)}.`,
+        message: `Marked as not received: "${i.description}" (code ${i.code}) on ${i.dateOfService}, billed at ${money(i.charge)}.`,
         evidence: { code: i.code, dateOfService: i.dateOfService, reportedBy: 'patient' },
       }),
     );

@@ -1,0 +1,176 @@
+{
+  "findings": [
+    {
+      "category": "billing_error",
+      "lineItemIds": [
+        "li-4",
+        "li-5"
+      ],
+      "amount": 64,
+      "message": "Code 85025 is billed 2 times on 2026-09-14 with identical units and modifiers. The 1 repeated charge(s) total $64.00.",
+      "evidence": {
+        "code": "85025",
+        "dateOfService": "2026-09-14",
+        "occurrences": 2
+      },
+      "id": "duplicates-1",
+      "checkId": "duplicates"
+    },
+    {
+      "category": "billing_error",
+      "lineItemIds": [
+        "li-2",
+        "li-3"
+      ],
+      "amount": 48,
+      "message": "Code 82947 is generally included in code 80053 when both are billed on 2026-09-14, and no modifier indicating a separate, distinct service was reported. The separately billed charge is $48.00.",
+      "evidence": {
+        "rule": "NCCI procedure-to-procedure edit",
+        "column1": "80053",
+        "column2": "82947",
+        "modifierIndicator": 1,
+        "tableVersion": "practitioner",
+        "dataVersion": "NCCI 2026 Q4"
+      },
+      "id": "unbundling-1",
+      "checkId": "unbundling"
+    },
+    {
+      "category": "billing_error",
+      "lineItemIds": [
+        "li-6"
+      ],
+      "amount": 25,
+      "message": "Code 36415 is billed for 3 units on 2026-09-14; the CMS limit is 2 per day.",
+      "evidence": {
+        "rule": "Medically Unlikely Edit",
+        "code": "36415",
+        "limit": 2,
+        "billedUnits": 3,
+        "appliesTo": "date of service",
+        "dataVersion": "NCCI 2026 Q4"
+      },
+      "id": "unit_limits-1",
+      "checkId": "unit_limits"
+    },
+    {
+      "category": "pricing_concern",
+      "lineItemIds": [
+        "li-1"
+      ],
+      "amount": 274.39,
+      "message": "Code 99214 is billed at $410.00, 3.02x the Medicare benchmark of $135.61 (threshold 3.00x).",
+      "evidence": {
+        "code": "99214",
+        "billedCharge": 410,
+        "medicareBenchmark": 135.61,
+        "ratio": 3.02,
+        "threshold": 3,
+        "source": "PFS, non-facility",
+        "dataVersion": "PFS 2026 Oct (RVU26D)",
+        "result": "benchmark outlier"
+      },
+      "id": "pricing-1",
+      "checkId": "pricing"
+    },
+    {
+      "category": "pricing_concern",
+      "lineItemIds": [
+        "li-2"
+      ],
+      "amount": 175.44,
+      "message": "Code 80053 is billed at $186.00, 17.61x the Medicare benchmark of $10.56 (threshold 3.00x).",
+      "evidence": {
+        "code": "80053",
+        "billedCharge": 186,
+        "medicareBenchmark": 10.56,
+        "ratio": 17.61,
+        "threshold": 3,
+        "source": "CLFS",
+        "dataVersion": "CLFS 2026 Q4",
+        "result": "benchmark outlier"
+      },
+      "id": "pricing-2",
+      "checkId": "pricing"
+    },
+    {
+      "category": "pricing_concern",
+      "lineItemIds": [
+        "li-4"
+      ],
+      "amount": 56.23,
+      "message": "Code 85025 is billed at $64.00, 8.24x the Medicare benchmark of $7.77 (threshold 3.00x).",
+      "evidence": {
+        "code": "85025",
+        "billedCharge": 64,
+        "medicareBenchmark": 7.77,
+        "ratio": 8.24,
+        "threshold": 3,
+        "source": "CLFS",
+        "dataVersion": "CLFS 2026 Q4",
+        "result": "benchmark outlier"
+      },
+      "id": "pricing-4",
+      "checkId": "pricing"
+    },
+    {
+      "category": "pricing_concern",
+      "lineItemIds": [
+        "li-7"
+      ],
+      "amount": 36.75,
+      "message": "Code 81003 is billed at $39.00, 17.33x the Medicare benchmark of $2.25 (threshold 3.00x).",
+      "evidence": {
+        "code": "81003",
+        "billedCharge": 39,
+        "medicareBenchmark": 2.25,
+        "ratio": 17.33,
+        "threshold": 3,
+        "source": "CLFS",
+        "dataVersion": "CLFS 2026 Q4",
+        "result": "benchmark outlier"
+      },
+      "id": "pricing-6",
+      "checkId": "pricing"
+    },
+    {
+      "category": "pricing_concern",
+      "lineItemIds": [
+        "li-8"
+      ],
+      "amount": 129.64,
+      "message": "Code 93000 is billed at $145.00, 9.44x the Medicare benchmark of $15.36 (threshold 3.00x).",
+      "evidence": {
+        "code": "93000",
+        "billedCharge": 145,
+        "medicareBenchmark": 15.36,
+        "ratio": 9.44,
+        "threshold": 3,
+        "source": "PFS, non-facility",
+        "dataVersion": "PFS 2026 Oct (RVU26D)",
+        "result": "benchmark outlier"
+      },
+      "id": "pricing-7",
+      "checkId": "pricing"
+    }
+  ],
+  "checksRun": [
+    "duplicates",
+    "math",
+    "unbundling",
+    "unit_limits",
+    "pricing",
+    "not_received"
+  ],
+  "checksSkipped": [
+    {
+      "checkId": "outside_stay",
+      "reason": "Only applies to hospital stays with admission and discharge dates."
+    }
+  ],
+  "totals": {
+    "billed": 1031,
+    "billingErrors": 137,
+    "pricingConcerns": 672.45
+  }
+}

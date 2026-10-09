@@ -60,11 +60,12 @@ export function runAudit(bill: BillForAudit, ref: ReferenceData, opts: { benchma
     }
   }
 
-  // A line whose whole charge is already disputed (a repeated duplicate, a service not received,
-  // a charge outside the stay) shouldn't also count as a pricing concern, or totals double-count.
+  // A line whose whole charge is already disputed (a repeated duplicate, a code billed separately
+  // that should be bundled, a service not received, a charge outside the stay) shouldn't also
+  // count as a pricing concern, or totals double-count.
   const fullyDisputed = new Set<string>();
   for (const f of findings) {
-    if (f.checkId === 'duplicates') f.lineItemIds.slice(1).forEach((id) => fullyDisputed.add(id));
+    if (f.checkId === 'duplicates' || f.checkId === 'unbundling') f.lineItemIds.slice(1).forEach((id) => fullyDisputed.add(id));
     if ((f.checkId === 'not_received' || f.checkId === 'outside_stay') && f.category === 'billing_error') f.lineItemIds.forEach((id) => fullyDisputed.add(id));
   }
   const kept = findings.filter((f) => f.checkId !== 'pricing' || !fullyDisputed.has(f.lineItemIds[0]));

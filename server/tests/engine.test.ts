@@ -56,6 +56,16 @@ describe('runAudit', () => {
     expect(result.totals.pricingConcerns).toBe(34.23);
   });
 
+  it('does not price a code that is already disputed as unbundled', () => {
+    const ref: ReferenceData = {
+      rates: [{ schedule: 'CLFS', code: '82947', rate: 3.93, version: 'v' }],
+      ncciEdits: [{ column1: '80053', column2: '82947', version: 'practitioner', modifierIndicator: 1, effectiveDate: '2000-07-01', dataVersion: 'v' }],
+      mueLimits: [],
+    };
+    const result = runAudit(bill([item({ code: '80053', charge: 186 }), item({ code: '82947', charge: 48 })]), ref, { benchmarkMultiplier: 3 });
+    expect(result.findings.map((f) => f.checkId)).toEqual(['unbundling']);
+  });
+
   it('does not price line items on inpatient bills', () => {
     const ref: ReferenceData = { ...emptyRef, rates: [{ schedule: 'CLFS', code: '85025', rate: 7.77, version: 'v' }] };
     const result = runAudit(bill([item({ code: '85025', charge: 500 })], { billType: 'inpatient' }), ref, { benchmarkMultiplier: 3 });
