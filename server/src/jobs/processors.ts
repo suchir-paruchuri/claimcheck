@@ -20,6 +20,16 @@ const LETTER_VALIDATION_ATTEMPTS = 3;
 class PermanentError extends Error {}
 
 /**
+ * Retrying only helps with temporary failures (timeouts, rate limits, server errors).
+ * A 4xx response other than 429 (bad model name, invalid key) will fail the same way every time.
+ */
+function isPermanent(err: unknown): boolean {
+  if (err instanceof PermanentError) return true;
+  const status = (err as { status?: unknown })?.status;
+  return typeof status === 'number' && status >= 400 && status < 500 && status !== 429;
+}
+
+/**
  * Wraps a processor with retries: failures are rescheduled with growing delays, and after
  * the last attempt the bill is marked failed with a readable error. Each processor
  * overwrites its own step's results, so a retry never duplicates data.
@@ -32,7 +42,7 @@ function withRetries(name: JobName, handler: (billId: string) => Promise<void>) 
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       console.error(`[${name}] bill ${billId} attempt ${attempt} failed: ${message}`);
-      if (!(err instanceof PermanentError) && attempt < MAX_ATTEMPTS) {
+      if (!isPermanent(err) && attempt < MAX_ATTEMPTS) {
         await getAgenda().schedule<BillJobData>(new Date(Date.now() + RETRY_DELAYS_MS[attempt - 1]), name, { billId, attempt: attempt + 1 });
         return;
       }

@@ -17,7 +17,7 @@ export const config = {
     get apiKey() {
       return required('GEMINI_API_KEY');
     },
-    model: process.env.GEMINI_MODEL ?? 'gemini-2.5-flash',
+    model: process.env.GEMINI_MODEL ?? 'gemini-3.8-flash',
   },
   aws: {
     region: process.env.AWS_REGION ?? 'us-east-1',
