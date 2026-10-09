@@ -266,8 +266,13 @@ export async function draftLetter(billId: string, llm: LlmProvider) {
   );
   // Each paragraph must state these facts; telling the model up front saves validation retries.
   const toModel = findings.map((f) => {
-    const { amounts, codes } = requiredFacts(f);
-    const mustInclude = [...codes.map((c) => `code ${c}`), ...amounts.map((a) => `$${a.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`)];
+    const { amounts, codes, phrases, counts } = requiredFacts(f);
+    const mustInclude = [
+      ...codes.map((c) => `code ${c}`),
+      ...amounts.map((a) => `$${a.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`),
+      ...phrases,
+      ...(counts.length ? [`${counts[0]} units billed`, `Medicare's limit of ${counts[1]}`] : []),
+    ];
     return { ...f, services: services.get(f.id), mustInclude };
   });
 

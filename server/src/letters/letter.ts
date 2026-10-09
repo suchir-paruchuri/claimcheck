@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { Finding } from '../domain/types';
-import { requiredFacts, templateSection } from './sections';
+import { mentionsCount, requiredFacts, templateSection } from './sections';
 
 /** What Gemini must return: one explanation per finding, keyed by finding ID. */
 export const LetterSectionsSchema = z.object({
@@ -61,9 +61,11 @@ function sectionErrors(explanation: string, finding: Finding, findings: Finding[
     else errors.push(`Finding "${id}" mentions $${value}, which is not in the audit data.`);
   }
 
-  const { amounts, codes } = requiredFacts(finding);
+  const { amounts, codes, phrases, counts } = requiredFacts(finding);
   for (const a of amounts) if (!mentioned.has(a.toFixed(2))) errors.push(`Finding "${id}" must state ${money(a)}.`);
   for (const c of codes) if (!explanation.includes(c)) errors.push(`Finding "${id}" must name code ${c}.`);
+  for (const p of phrases) if (!explanation.includes(p)) errors.push(`Finding "${id}" must state the date as "${p}".`);
+  for (const n of counts) if (!mentionsCount(explanation, n)) errors.push(`Finding "${id}" must state the number ${n} (billed units and Medicare's limit).`);
   return errors;
 }
 

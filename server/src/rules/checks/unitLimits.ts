@@ -25,7 +25,7 @@ export function checkUnitLimits(bill: BillForAudit, limits: MueLimit[], version:
             lineItemIds: [item.id],
             amount,
             message: `Code ${item.code} is billed with ${item.units} units on one line; the CMS limit is ${mue.limit} per line. The ${excess} extra unit(s) account for ${money(amount)}.`,
-            evidence: { rule: 'Medically Unlikely Edit', code: item.code, limit: mue.limit, billedUnits: item.units, appliesTo: 'claim line', dataVersion: mue.dataVersion },
+            evidence: { rule: 'Medically Unlikely Edit', code: item.code, limit: mue.limit, billedUnits: item.units, appliesTo: 'claim line', dateOfService: item.dateOfService, dataVersion: mue.dataVersion },
           }),
         );
       }
@@ -47,7 +47,7 @@ export function checkUnitLimits(bill: BillForAudit, limits: MueLimit[], version:
         lineItemIds: items.map((i) => i.id),
         amount,
         message: `Code ${items[0].code} is billed for ${units} units on ${items[0].dateOfService}; the CMS limit is ${mue.limit} per day. The ${units - mue.limit} extra unit(s) account for ${money(amount)}.`,
-        evidence: { rule: 'Medically Unlikely Edit', code: items[0].code, limit: mue.limit, billedUnits: units, appliesTo: 'date of service', dataVersion: mue.dataVersion },
+        evidence: { rule: 'Medically Unlikely Edit', code: items[0].code, limit: mue.limit, billedUnits: units, appliesTo: 'date of service', dateOfService: items[0].dateOfService, dataVersion: mue.dataVersion },
       }),
     );
   }

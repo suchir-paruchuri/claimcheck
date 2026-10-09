@@ -30,7 +30,8 @@
         "column2": "82947",
         "modifierIndicator": 1,
         "tableVersion": "practitioner",
-        "dataVersion": "NCCI 2026 Q4"
+        "dataVersion": "NCCI 2026 Q4",
+        "dateOfService": "2026-09-14"
       },
       "id": "unbundling-1",
       "checkId": "unbundling"
@@ -48,7 +49,8 @@
         "limit": 2,
         "billedUnits": 3,
         "appliesTo": "date of service",
-        "dataVersion": "NCCI 2026 Q4"
+        "dataVersion": "NCCI 2026 Q4",
+        "dateOfService": "2026-09-14"
       },
       "id": "unit_limits-1",
       "checkId": "unit_limits"

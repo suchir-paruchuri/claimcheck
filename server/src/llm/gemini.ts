@@ -25,7 +25,7 @@ const LETTER_PROMPT = `Write one short, factual paragraph for each finding below
 Rules:
 - Write in the first person, as the patient ("my bill", "my insurer"). The findings are written to the patient ("you"); rephrase them.
 - Use only the facts in the finding. Do not add charges, amounts, or claims that are not there.
-- Each paragraph must contain every item in that finding's "mustInclude" exactly as written (codes and dollar amounts), plus the date of service when the finding has one. A paragraph without the specific codes and amounts gives the billing office nothing to act on.
+- Each paragraph must contain every item in that finding's "mustInclude": codes, dollar amounts, and dates exactly as written, and unit counts as digits (for example, "3 units"). A paragraph without the specific codes and amounts gives the billing office nothing to act on.
 - Name the service in parentheses after its code, using "services" (for example, "Code 93000 (electrocardiogram)").
 - Write any dollar amount exactly as it appears in the finding's amount or evidence, formatted like $1,234.56.
 - Write dates like September 14, 2026. Say "the Medicare rate" and "Medicare's limit", not "benchmark" or "CMS". Leave out the flagging threshold and the phrase "disputed amount".

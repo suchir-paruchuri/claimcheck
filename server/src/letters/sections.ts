@@ -16,22 +16,33 @@ export function longDate(iso: unknown): string {
 
 const num = (v: unknown) => (typeof v === 'number' ? v : undefined);
 
-/** Dollar amounts (to the cent) and codes a paragraph about this finding has to include. */
-export function requiredFacts(f: Finding): { amounts: number[]; codes: string[] } {
+export interface RequiredFacts {
+  /** Dollar amounts, to the cent. */
+  amounts: number[];
+  codes: string[];
+  /** Exact phrases, such as the date of service written out ("September 14, 2026"). */
+  phrases: string[];
+  /** Whole numbers that must appear, such as billed units and the Medicare limit. */
+  counts: number[];
+}
+
+/** What a paragraph about this finding has to state for the billing office to act on it. */
+export function requiredFacts(f: Finding): RequiredFacts {
   const e = f.evidence as Record<string, unknown>;
   const codes = [e.code, e.column1, e.column2].filter((c): c is string => typeof c === 'string');
   const pick = (...keys: string[]) => keys.map((k) => num(e[k])).filter((v): v is number => v !== undefined);
-  switch (f.checkId) {
-    case 'pricing':
-      return { amounts: pick('billedCharge', 'medicareBenchmark'), codes };
-    case 'insurance_charge':
-      return { amounts: pick('billedToYou', 'billedToInsurer'), codes };
-    case 'insurance_balance':
-      return { amounts: pick('amountDue', 'maxExpectedDue'), codes };
-    default:
-      return { amounts: [f.amount], codes };
-  }
+  const phrases = typeof e.dateOfService === 'string' ? [longDate(e.dateOfService)] : [];
+  const counts = f.checkId === 'unit_limits' ? pick('billedUnits', 'limit') : [];
+  const amounts =
+    f.checkId === 'pricing' ? pick('billedCharge', 'medicareBenchmark')
+    : f.checkId === 'insurance_charge' ? pick('billedToYou', 'billedToInsurer')
+    : f.checkId === 'insurance_balance' ? pick('amountDue', 'maxExpectedDue')
+    : [f.amount];
+  return { amounts, codes, phrases, counts };
 }
+
+/** Whether the text names this whole number ("3 units", "limit of 2"), not as part of a larger number. */
+export const mentionsCount = (text: string, n: number) => new RegExp(`(?<![\\d.,$])${n}(?![\\d.,]\\d)`).test(text);
 
 /** Lowercases a description's first word for mid-sentence use, but leaves acronyms like CBC alone. */
 const midSentence = (s: string) => (/^[A-Z][a-z]/.test(s) ? s.charAt(0).toLowerCase() + s.slice(1) : s);
@@ -47,7 +58,7 @@ export function templateSection(f: Finding, services: string[] = []): string {
     case 'duplicates':
       return `${cap(named(e.code, svc))} is billed ${e.occurrences === 2 ? 'twice' : `${e.occurrences} times`}${on}, with identical units and modifiers. Please remove the repeated charges, which total ${usd(f.amount)}.`;
     case 'unbundling':
-      return `${cap(named(e.column2, services[1] ?? svc))} is billed separately, but under Medicare's National Correct Coding Initiative edits it is included in code ${e.column1} when both are billed on the same day, and no modifier indicates a separate, distinct service. Please remove the ${usd(f.amount)} charge.`;
+      return `${cap(named(e.column2, services[1] ?? svc))} is billed separately${on}, but under Medicare's National Correct Coding Initiative edits it is included in code ${e.column1} when both are billed on the same day, and no modifier indicates a separate, distinct service. Please remove the ${usd(f.amount)} charge.`;
     case 'unit_limits':
       return `${cap(named(e.code, svc))} is billed for ${e.billedUnits} units${on}, but Medicare's limit for this service is ${e.limit} per ${e.appliesTo === 'claim line' ? 'line' : 'day'}. Please remove the extra units, which account for ${usd(f.amount)}.`;
     case 'math':

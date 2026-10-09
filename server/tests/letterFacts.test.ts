@@ -1,7 +1,7 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { sectionsWithFallback, validateLetterSections } from '../src/letters/letter';
-import { templateSection } from '../src/letters/sections';
+import { mentionsCount, templateSection } from '../src/letters/sections';
 import type { Finding } from '../src/domain/types';
 
 const demo = (file: string) => JSON.parse(readFileSync(join(__dirname, '../../client/src/api', file), 'utf8'));
@@ -22,6 +22,29 @@ describe('letter facts', () => {
     const f = byCheck('unbundling');
     const r = validateLetterSections({ sections: [{ findingId: f.id, explanation: 'The glucose test is billed separately for $48.00. Please remove it.' }] }, [f]);
     expect(r.errors).toEqual(expect.arrayContaining(['Finding "unbundling-1" must name code 80053.', 'Finding "unbundling-1" must name code 82947.']));
+  });
+
+  it('requires the date of service, written out', () => {
+    const f = byCheck('duplicates');
+    const r = validateLetterSections(
+      { sections: [{ findingId: f.id, explanation: 'I noticed that code 85025 (CBC with automated differential) was billed twice on my statement. Please remove the duplicate $64.00 charge from my bill.' }] },
+      [f],
+    );
+    expect(r.errors).toEqual(['Finding "duplicates-1" must state the date as "September 14, 2026".']);
+  });
+
+  it('requires the billed units and the Medicare limit for a unit-limit finding', () => {
+    const f = byCheck('unit_limits');
+    const vague = 'There is an excessive unit charge for code 36415 (Routine venipuncture) on September 14, 2026. Please remove the excess $25.00 charge.';
+    const specific = 'Code 36415 (routine venipuncture) is billed for 3 units on September 14, 2026, but Medicare allows 2 per day. Please remove the extra $25.00 charge.';
+    expect(validateLetterSections({ sections: [{ findingId: f.id, explanation: vague }] }, [f]).errors).toHaveLength(2);
+    expect(validateLetterSections({ sections: [{ findingId: f.id, explanation: specific }] }, [f]).ok).toBe(true);
+  });
+
+  it('counts whole numbers only, not digits inside dates or amounts', () => {
+    expect(mentionsCount('billed for 3 units', 3)).toBe(true);
+    expect(mentionsCount('on September 14, 2026 for $25.00', 2)).toBe(false);
+    expect(mentionsCount('a limit of 2 per day.', 2)).toBe(true);
   });
 
   it('template paragraphs pass validation for every kind of sample finding', () => {

@@ -55,6 +55,7 @@ export function checkUnbundling(bill: BillForAudit, edits: NcciEdit[], version: 
             rule: 'NCCI procedure-to-procedure edit',
             column1: col1.code,
             column2: col2.code,
+            dateOfService: col1.dateOfService,
             modifierIndicator: edit.modifierIndicator,
             tableVersion: version,
             dataVersion: edit.dataVersion,
