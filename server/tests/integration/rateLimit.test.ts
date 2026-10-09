@@ -9,7 +9,7 @@ beforeAll(async () => {
   process.env.JWT_SECRET = 'test-secret-that-is-long-enough-for-hs256';
   process.env.AUTH_RATE_LIMIT = '3';
   await connectTestDb();
-}, 120_000);
+}, 60_000);
 afterEach(clearTestDb);
 afterAll(disconnectTestDb);
 

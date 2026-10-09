@@ -23,7 +23,7 @@ beforeAll(async () => {
   process.env.JWT_SECRET = JWT_SECRET;
   process.env.AUTH_RATE_LIMIT = '1000';
   await connectTestDb();
-}, 120_000);
+}, 60_000);
 afterEach(clearTestDb);
 afterAll(disconnectTestDb);
 

@@ -19,7 +19,10 @@ export async function connectTestDb() {
   }
   // Each Jest worker gets its own database, so test files running in parallel never collide,
   // and the main "claimcheck" database is never touched.
-  await mongoose.connect(uri, { dbName: `claimcheck_test_${process.env.JEST_WORKER_ID ?? '1'}` });
+  await mongoose.connect(uri, {
+    dbName: `claimcheck_test_${process.env.JEST_WORKER_ID ?? '1'}`,
+    serverSelectionTimeoutMS: 5000, // fail in seconds, not minutes, if MongoDB is unreachable
+  });
 }
 
 export async function clearTestDb() {
