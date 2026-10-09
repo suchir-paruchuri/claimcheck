@@ -10,7 +10,8 @@
     "start:worker": "node dist/worker.js",
     "typecheck": "tsc --noEmit",
     "test": "jest",
-    "import:fees": "tsx src/import/importFeeSchedules.ts"
+    "import:fees": "tsx src/import/importFeeSchedules.ts",
+    "import:rules": "tsx src/import/importCodingRules.ts"
   },
   "author": "",
   "license": "ISC",

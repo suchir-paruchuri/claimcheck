@@ -57,6 +57,17 @@ npm run import:fees -- --pfs data/PPRRVU2026_Oct_nonQPP.csv \
 
 The import streams each file and writes in 1,000-row bulk upserts. With the October 2026 PFS, July 2026 OPPS, and Q4 2026 lab files it loads **19,011 priced rates** (9,526 PFS, 7,360 OPPS, 2,125 lab) plus 2,086 packaged OPPS codes.
 
+Then the coding rules (Q4 2026: the 8 NCCI PTP files from the [PTP edits page](https://www.cms.gov/medicare-medicaid-coordination/national-correct-coding-initiative-ncci/ncci-medicare/medicare-ncci-procedure-procedure-ptp-edits) and the practitioner and outpatient hospital tables from the [MUE page](https://www.cms.gov/medicare-medicaid-coordination/national-correct-coding-initiative-ncci/ncci-medicare/medicare-ncci-medically-unlikely-edits); use the `.txt` and `.csv` files inside the ZIPs):
+
+```bash
+npm run import:rules -- \
+  --ncci-practitioner 'data/ncci/ccipra-v323r0-f*.txt' --ncci-hospital 'data/ncci/ccioph-v323r0-f*.txt' \
+  --mue-practitioner data/ncci/MCR_MUE_PractitionerServices_Eff_10-01-2026.csv \
+  --mue-hospital data/ncci/MCR_MUE_OutpatientHospitalServices_Eff_10-01-2026.csv [--since 2024-01-01] [--dry-run]
+```
+
+The PTP files are read line by line and inserted in 5,000-row batches. Of 4,506,527 Q4 2026 PTP rows, the import keeps **3,191,316 edits** (1,761,922 practitioner, 1,429,394 hospital): it drops edits CMS marks not applicable (modifier indicator 9) and edits deleted before `--since`. It also loads **30,374 MUE limits**. Each run replaces that table version, so importing a new quarter leaves no stale rules.
+
 ### S3 setup
 
 Enable CORS for `PUT` from your frontend origin, and add a lifecycle rule that expires objects under `uploads/` after 30 days.
@@ -84,4 +95,4 @@ All `/bills` routes require the session cookie, and every query filters by the s
 - Inpatient bills get a reduced set of checks; classification can be uncertain, and the app says so.
 - Source matching needs a text-based PDF (no OCR yet).
 - On Gemini's free tier, submitted content may be used by Google, so use synthetic bills only.
-- NCCI and MUE importers are not built yet.
+- Coding rules cover dates of service from `--since` (default 2024-01-01) onward, and MUE limits are the current quarter's values.

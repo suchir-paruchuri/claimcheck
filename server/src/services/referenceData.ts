@@ -1,4 +1,4 @@
-import type { FeeScheduleRate, MueLimit, NcciEdit, ReferenceData } from '../domain/types';
+import type { FeeScheduleRate, MueLimit, NcciEdit, NcciVersion, ReferenceData } from '../domain/types';
 import { FeeSchedule } from '../models/FeeSchedule';
 import { MueLimitModel, NcciEditModel } from '../models/CodingRules';
 
@@ -6,11 +6,11 @@ import { MueLimitModel, NcciEditModel } from '../models/CodingRules';
  * Fetches all reference data a bill needs in one indexed query per collection ($in on the
  * bill's codes), instead of one query per line item.
  */
-export async function loadReferenceData(codes: string[]): Promise<ReferenceData> {
+export async function loadReferenceData(codes: string[], version: NcciVersion): Promise<ReferenceData> {
   const [rates, ncciEdits, mueLimits] = await Promise.all([
     FeeSchedule.find({ code: { $in: codes } }).lean(),
-    NcciEditModel.find({ column1: { $in: codes }, column2: { $in: codes } }).lean(),
-    MueLimitModel.find({ code: { $in: codes } }).lean(),
+    NcciEditModel.find({ version, column1: { $in: codes }, column2: { $in: codes } }).lean(),
+    MueLimitModel.find({ version, code: { $in: codes } }).lean(),
   ]);
   return {
     rates: rates.map((r) => ({ ...r, modifier: r.modifier ?? undefined })) as unknown as FeeScheduleRate[],

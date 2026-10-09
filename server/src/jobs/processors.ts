@@ -7,7 +7,7 @@ import { ExtractionSchema, type LlmProvider } from '../llm/provider';
 import { Bill } from '../models/Bill';
 import { User } from '../models/User';
 import { classifyBill } from '../rules/classify';
-import { codesNeeded, runAudit } from '../rules/engine';
+import { codesNeeded, ncciVersionFor, runAudit } from '../rules/engine';
 import { readPdfText } from '../services/pdfText';
 import { loadCmsDescriptions, loadReferenceData } from '../services/referenceData';
 import { downloadFile } from '../services/storage';
@@ -115,7 +115,7 @@ export async function analyzeBill(billId: string) {
   await bill.save();
 
   const audit = toBillForAudit(bill);
-  const ref = await loadReferenceData(codesNeeded(audit));
+  const ref = await loadReferenceData(codesNeeded(audit), ncciVersionFor(audit));
   const result = runAudit(audit, ref, { benchmarkMultiplier: config.benchmarkMultiplier });
 
   bill.set({
