@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { Finding } from '../domain/types';
+import { requiredFacts, templateSection } from './sections';
 
 /** What Gemini must return: one explanation per finding, keyed by finding ID. */
 export const LetterSectionsSchema = z.object({
@@ -34,14 +35,42 @@ export interface LetterValidation {
   sections?: LetterSections['sections'];
 }
 
-/**
- * Validates the model's output before any letter is built:
- * schema shape, every finding covered exactly once, no unknown findings,
- * and every dollar amount mentioned matching that finding's audit data.
- */
 /** App-internal IDs (bill lines, statements) that mean nothing to a billing office. */
 const INTERNAL_ID_RE = /\b(?:li-\d+|eob-[\w-]+)\b/i;
 
+const money = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+/**
+ * Problems with one paragraph: internal IDs, dollar amounts that aren't in the finding's audit
+ * data, and missing facts (the amounts and codes the billing office needs to act on it).
+ */
+function sectionErrors(explanation: string, finding: Finding, findings: Finding[]): string[] {
+  const errors: string[] = [];
+  const id = finding.id;
+  const internal = explanation.match(INTERNAL_ID_RE)?.[0] ?? findings.find((f) => explanation.includes(f.id))?.id;
+  if (internal) errors.push(`Finding "${id}" mentions the internal ID "${internal}". Leave IDs out of the letter.`);
+
+  const allowed = allowedAmounts(finding);
+  const mentioned = new Set<string>();
+  for (const m of explanation.matchAll(AMOUNT_RE)) {
+    const value = Number(m[1].replace(/,/g, '')).toFixed(2);
+    mentioned.add(value);
+    if (allowed.has(value)) continue;
+    if (finding.category === 'pricing_concern' && value === finding.amount.toFixed(2))
+      errors.push(`Finding "${id}" states $${value} as an amount to dispute. For a pricing concern, give only the charge and the Medicare rate and ask for an explanation or reduction.`);
+    else errors.push(`Finding "${id}" mentions $${value}, which is not in the audit data.`);
+  }
+
+  const { amounts, codes } = requiredFacts(finding);
+  for (const a of amounts) if (!mentioned.has(a.toFixed(2))) errors.push(`Finding "${id}" must state ${money(a)}.`);
+  for (const c of codes) if (!explanation.includes(c)) errors.push(`Finding "${id}" must name code ${c}.`);
+  return errors;
+}
+
+/**
+ * Validates the model's output before any letter is built: schema shape, every finding covered
+ * exactly once, no unknown findings, and each paragraph passing sectionErrors.
+ */
 export function validateLetterSections(raw: unknown, findings: Finding[]): LetterValidation {
   const parsed = LetterSectionsSchema.safeParse(raw);
   if (!parsed.success) return { ok: false, errors: parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`) };
@@ -53,23 +82,34 @@ export function validateLetterSections(raw: unknown, findings: Finding[]): Lette
   for (const s of parsed.data.sections) {
     const finding = byId.get(s.findingId);
     if (!finding) { errors.push(`Unknown finding ID "${s.findingId}".`); continue; }
-    const internal = s.explanation.match(INTERNAL_ID_RE) ?? findings.find((f) => s.explanation.includes(f.id))?.id;
-    if (internal) errors.push(`Finding "${s.findingId}" mentions the internal ID "${internal}". Leave IDs out of the letter.`);
     if (seen.has(s.findingId)) errors.push(`Finding "${s.findingId}" is covered more than once.`);
     seen.add(s.findingId);
-
-    const allowed = allowedAmounts(finding);
-    for (const m of s.explanation.matchAll(AMOUNT_RE)) {
-      const value = Number(m[1].replace(/,/g, '')).toFixed(2);
-      if (allowed.has(value)) continue;
-      if (finding.category === 'pricing_concern' && value === finding.amount.toFixed(2))
-        errors.push(`Finding "${s.findingId}" states $${value} as an amount to dispute. For a pricing concern, give only the charge and the Medicare rate and ask for an explanation or reduction.`);
-      else errors.push(`Finding "${s.findingId}" mentions $${value}, which is not in the audit data.`);
-    }
+    errors.push(...sectionErrors(s.explanation, finding, findings));
   }
   for (const f of findings) if (!seen.has(f.id)) errors.push(`Finding "${f.id}" is missing from the letter.`);
 
   return errors.length ? { ok: false, errors } : { ok: true, errors: [], sections: parsed.data.sections };
+}
+
+/**
+ * After the model's last attempt: keep each of its paragraphs that passes on its own, and use a
+ * plain template paragraph, built from the audit data, for every finding it got wrong or missed.
+ */
+export function sectionsWithFallback(
+  raw: unknown,
+  findings: Finding[],
+  services: Map<string, string[]> = new Map(),
+): { sections: LetterSections['sections']; templated: string[] } {
+  const parsed = LetterSectionsSchema.safeParse(raw);
+  const fromModel = new Map((parsed.success ? parsed.data.sections : []).map((s) => [s.findingId, s.explanation]));
+  const templated: string[] = [];
+  const sections = findings.map((f) => {
+    const text = fromModel.get(f.id);
+    if (text !== undefined && sectionErrors(text, f, findings).length === 0) return { findingId: f.id, explanation: text };
+    templated.push(f.id);
+    return { findingId: f.id, explanation: templateSection(f, services.get(f.id)) };
+  });
+  return { sections, templated };
 }
 
 export interface LetterContext {

@@ -2,7 +2,8 @@ import type { Job } from 'agenda';
 import { config } from '../config';
 import type { BillForAudit, Finding } from '../domain/types';
 import { totalsReconcile, verifyItem } from '../extraction/verify';
-import { buildLetter, validateLetterSections } from '../letters/letter';
+import { buildLetter, sectionsWithFallback, validateLetterSections } from '../letters/letter';
+import { requiredFacts } from '../letters/sections';
 import { AllModelsBusyError } from '../llm/modelChain';
 import { EobExtractionSchema, ExtractionSchema, type LlmProvider } from '../llm/provider';
 import { Bill } from '../models/Bill';
@@ -260,31 +261,47 @@ export async function draftLetter(billId: string, llm: LlmProvider) {
   if (findings.length === 0) throw new PermanentError('There are no findings to dispute');
 
   const descriptions = new Map(bill.lineItems.map((l) => [l.id, l.description]));
-  const withServices = findings.map((f) => ({ ...f, services: [...new Set(f.lineItemIds.map((id) => descriptions.get(id)).filter((d): d is string => !!d))] }));
+  const services = new Map(
+    findings.map((f) => [f.id, [...new Set(f.lineItemIds.map((id) => descriptions.get(id)).filter((d): d is string => !!d))]]),
+  );
+  // Each paragraph must state these facts; telling the model up front saves validation retries.
+  const toModel = findings.map((f) => {
+    const { amounts, codes } = requiredFacts(f);
+    const mustInclude = [...codes.map((c) => `code ${c}`), ...amounts.map((a) => `$${a.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`)];
+    return { ...f, services: services.get(f.id), mustInclude };
+  });
 
   let feedback: string[] = [];
-  for (let i = 0; i < LETTER_VALIDATION_ATTEMPTS; i++) {
-    const { data, model } = await llm.draftLetterSections(withServices, feedback);
-    const validation = validateLetterSections(data, findings);
-    if (validation.ok) {
-      const user = await User.findById(bill.userId).select('name');
-      const text = buildLetter(
-        {
-          patientName: user?.name ?? '',
-          providerName: bill.providerName ?? undefined,
-          accountNumber: bill.accountNumber ?? undefined,
-          date: new Date().toLocaleDateString('en-US', { dateStyle: 'long' }),
-        },
-        findings,
-        validation.sections!,
-      );
-      bill.set({ letter: { text, generatedAt: new Date(), status: 'ready' }, 'timings.letterMs': Date.now() - started, 'models.letter': model });
-      await bill.save();
-      return;
-    }
-    feedback = validation.errors;
+  let last: unknown;
+  let model = '';
+  let sections: Parameters<typeof buildLetter>[2] | undefined;
+  for (let i = 0; i < LETTER_VALIDATION_ATTEMPTS && !sections; i++) {
+    const result = await llm.draftLetterSections(toModel, feedback);
+    ({ data: last, model } = result);
+    const validation = validateLetterSections(last, findings);
+    if (validation.ok) sections = validation.sections;
+    else feedback = validation.errors;
   }
-  throw new Error(`The drafted letter failed validation: ${feedback.join(' ')}`);
+  if (!sections) {
+    // Never fail the letter over wording: paragraphs the model got wrong come from a template.
+    const fallback = sectionsWithFallback(last, findings, services);
+    console.warn(`[draft-letter] bill ${billId}: template paragraphs for ${fallback.templated.join(', ')} after: ${feedback.join(' ')}`);
+    sections = fallback.sections;
+  }
+
+  const user = await User.findById(bill.userId).select('name');
+  const text = buildLetter(
+    {
+      patientName: user?.name ?? '',
+      providerName: bill.providerName ?? undefined,
+      accountNumber: bill.accountNumber ?? undefined,
+      date: new Date().toLocaleDateString('en-US', { dateStyle: 'long' }),
+    },
+    findings,
+    sections,
+  );
+  bill.set({ letter: { text, generatedAt: new Date(), status: 'ready' }, 'timings.letterMs': Date.now() - started, 'models.letter': model });
+  await bill.save();
 }
 
 export function registerProcessors(llm: LlmProvider) {

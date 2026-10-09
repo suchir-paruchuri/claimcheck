@@ -55,7 +55,7 @@ export interface LlmProvider {
 }
 
 /** A finding plus the bill's descriptions of the lines it covers, so the letter can name services. */
-export type LetterFinding = Finding & { services?: string[] };
+export type LetterFinding = Finding & { services?: string[]; mustInclude?: string[] };
 
 /** The model's parsed JSON (validated by the caller) and which model produced it. */
 export interface LlmResult {

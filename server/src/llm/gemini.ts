@@ -25,6 +25,7 @@ const LETTER_PROMPT = `Write one short, factual paragraph for each finding below
 Rules:
 - Write in the first person, as the patient ("my bill", "my insurer"). The findings are written to the patient ("you"); rephrase them.
 - Use only the facts in the finding. Do not add charges, amounts, or claims that are not there.
+- Each paragraph must contain every item in that finding's "mustInclude" exactly as written (codes and dollar amounts), plus the date of service when the finding has one. A paragraph without the specific codes and amounts gives the billing office nothing to act on.
 - Name the service in parentheses after its code, using "services" (for example, "Code 93000 (electrocardiogram)").
 - Write any dollar amount exactly as it appears in the finding's amount or evidence, formatted like $1,234.56.
 - Write dates like September 14, 2026. Say "the Medicare rate" and "Medicare's limit", not "benchmark" or "CMS". Leave out the flagging threshold and the phrase "disputed amount".
@@ -79,7 +80,7 @@ export class GeminiProvider implements LlmProvider {
   }
 
   draftLetterSections(findings: LetterFinding[], feedback: string[] = []) {
-    const facts = findings.map(({ id, checkId, category, amount, message, evidence, services }) => ({ id, checkId, category, amount, message, evidence, services }));
+    const facts = findings.map(({ id, checkId, category, amount, message, evidence, services, mustInclude }) => ({ id, checkId, category, amount, message, evidence, services, mustInclude }));
     const retryNote = feedback.length ? `\nYour previous answer was rejected for these reasons; fix them:\n- ${feedback.join('\n- ')}` : '';
     return this.generateJson([{ text: `${LETTER_PROMPT}${retryNote}\n\nFindings:\n${JSON.stringify(facts, null, 2)}` }], letterSectionsJsonSchema, config.gemini.letterTimeoutMs);
   }
