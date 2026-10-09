@@ -46,7 +46,7 @@ export class GeminiProvider implements LlmProvider {
   private chain = new ModelChain(config.gemini.models);
 
   /** Sends the request to the first model that answers; see ModelChain for the fallback rules. */
-  private async generateJson(parts: object[], schema: unknown): Promise<LlmResult> {
+  private async generateJson(parts: object[], schema: unknown, timeoutMs = config.gemini.timeoutMs): Promise<LlmResult> {
     const { value, model } = await this.chain.run(async (model) => {
       const res = await this.ai.models.generateContent({
         model,
@@ -55,7 +55,7 @@ export class GeminiProvider implements LlmProvider {
           responseMimeType: 'application/json',
           responseJsonSchema: schema,
           temperature: 0,
-          abortSignal: AbortSignal.timeout(config.gemini.timeoutMs),
+          abortSignal: AbortSignal.timeout(timeoutMs),
         },
       });
       if (!res.text) throw new Error(`${model} returned an empty response`);
@@ -81,6 +81,6 @@ export class GeminiProvider implements LlmProvider {
   draftLetterSections(findings: LetterFinding[], feedback: string[] = []) {
     const facts = findings.map(({ id, checkId, category, amount, message, evidence, services }) => ({ id, checkId, category, amount, message, evidence, services }));
     const retryNote = feedback.length ? `\nYour previous answer was rejected for these reasons; fix them:\n- ${feedback.join('\n- ')}` : '';
-    return this.generateJson([{ text: `${LETTER_PROMPT}${retryNote}\n\nFindings:\n${JSON.stringify(facts, null, 2)}` }], letterSectionsJsonSchema);
+    return this.generateJson([{ text: `${LETTER_PROMPT}${retryNote}\n\nFindings:\n${JSON.stringify(facts, null, 2)}` }], letterSectionsJsonSchema, config.gemini.letterTimeoutMs);
   }
 }

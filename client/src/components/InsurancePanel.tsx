@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { api, isDemo, type Bill, type Eob } from '../api';
-import { money, shortDate } from '../lib';
+import { busyRetryNote, money, shortDate } from '../lib';
 
 const STATUS_TEXT: Record<Eob['status'], string> = {
   pending: 'Uploading',
@@ -74,6 +74,7 @@ export default function InsurancePanel({ bill, onChange }: { bill: Bill; onChang
             <span className="eob-name">{eob.payer ?? eob.originalFilename ?? 'Insurance statement'}{eob.claimNumber && <span className="hint">, claim {eob.claimNumber}</span>}</span>
             <span className={`status status-${eob.status === 'ready' ? 'complete' : eob.status === 'failed' ? 'failed' : 'pending'}`}>{STATUS_TEXT[eob.status]}</span>
           </div>
+          {eob.status !== 'ready' && eob.status !== 'failed' && busyRetryNote(eob.retryAt) && <p className="hint">{busyRetryNote(eob.retryAt)}</p>}
           {eob.status === 'failed' && (
             <p className="form-error">
               {eob.error ?? 'This statement couldn’t be read.'}{' '}

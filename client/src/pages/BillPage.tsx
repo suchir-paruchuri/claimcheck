@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api, isDemo, type Bill } from '../api';
 import { SAMPLE_BILL_URL } from '../api/demo';
-import { billTitle, usePolling } from '../lib';
+import { billTitle, busyRetryNote, usePolling } from '../lib';
 import ResultsView from '../components/ResultsView';
 import ReviewView from '../components/ReviewView';
 
@@ -54,7 +54,10 @@ export default function BillPage() {
       {isDemo && bill.status === 'pending' ? (
         <UploadedPreview bill={bill} onStarted={refresh} />
       ) : bill.status === 'pending' || bill.status === 'extracting' ? (
-        <Working title="Reading your bill" body="Pulling out each charge and checking it against the bill itself and Medicare's code list. This usually takes under a minute." />
+        <Working
+          title="Reading your bill"
+          body={busyRetryNote(bill.retryAt?.extract) ?? "Pulling out each charge and checking it against the bill itself and Medicare's code list. This usually takes under a minute."}
+        />
       ) : bill.status === 'analyzing' ? (
         <Working title="Checking your charges" body="Running every audit check that applies to this kind of bill." />
       ) : bill.status === 'failed' ? (

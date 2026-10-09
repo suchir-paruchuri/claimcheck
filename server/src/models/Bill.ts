@@ -72,6 +72,8 @@ const eobSchema = new Schema(
     lines: { type: [eobLineSchema], default: [] },
     // The Gemini model that read this statement.
     model: String,
+    // When every Gemini model was busy: the time of the next automatic attempt.
+    retryAt: Date,
     error: String,
   },
   { _id: false },
@@ -126,6 +128,8 @@ const billSchema = new Schema(
     },
     error: String,
     timings: { extractionMs: Number, analysisMs: Number, letterMs: Number },
+    // When every Gemini model was busy: the time of the next automatic attempt, per step.
+    retryAt: { extract: Date, letter: Date },
     // Which Gemini model handled each step (the first in GEMINI_MODELS that answered).
     models: { extraction: String, letter: String },
   },

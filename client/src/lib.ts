@@ -55,3 +55,14 @@ export const CHECK_LABEL: Record<string, string> = {
   outside_stay: 'Charges outside your stay dates',
   insurance: 'Comparison with your insurance statement',
 };
+
+/** "The AI service is busy, so we'll try again automatically at 4:32 PM." when a retry is scheduled. */
+export function busyRetryNote(retryAt: string | undefined): string | undefined {
+  if (!retryAt) return undefined;
+  const at = new Date(retryAt);
+  if (at.getTime() < Date.now() - 60_000) return undefined;
+  const time = at.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  return at.getTime() <= Date.now()
+    ? 'The AI service was busy, so we’re trying again now.'
+    : `The AI service is busy right now, so we’ll try again automatically at ${time}. You can leave this page and come back.`;
+}

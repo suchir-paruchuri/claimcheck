@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api, type Bill } from '../api';
+import { busyRetryNote } from '../lib';
 
 export default function LetterPanel({ bill, onChange }: { bill: Bill; onChange: () => void }) {
   const status = bill.letter?.status ?? 'none';
@@ -39,7 +40,9 @@ export default function LetterPanel({ bill, onChange }: { bill: Bill; onChange: 
           <button className="primary" onClick={draft} disabled={busy}>Draft my letter</button>
         </>
       )}
-      {status === 'drafting' && <p role="status" className="drafting">Drafting your letter. This takes a few seconds.</p>}
+      {status === 'drafting' && (
+        <p role="status" className="drafting">{busyRetryNote(bill.retryAt?.letter) ?? 'Drafting your letter. This usually takes under a minute.'}</p>
+      )}
       {status === 'failed' && (
         <>
           <p className="form-error">The letter couldn't be drafted. Try again in a minute.</p>

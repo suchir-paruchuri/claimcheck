@@ -48,6 +48,8 @@ export interface BillSummary {
   originalFilename?: string;
   providerName?: string;
   totals?: { billed: number; billingErrors: number; pricingConcerns: number; insuranceIssues?: number };
+  /** Set while every AI model is busy: when each step's next automatic attempt happens. */
+  retryAt?: { extract?: string; letter?: string };
   letter?: { status: 'none' | 'drafting' | 'ready' | 'failed' };
   fileDeleted?: boolean;
   createdAt: string;
@@ -74,6 +76,8 @@ export interface Eob {
   claimNumber?: string;
   lines: EobLine[];
   error?: string;
+  /** Set while every AI model is busy: when the next automatic attempt happens. */
+  retryAt?: string;
 }
 
 export interface Reconciliation {

@@ -1,7 +1,7 @@
 import 'dotenv/config';
 
 /** Flash models only, best first. Each has its own free-tier quota, so falling back also spreads the load. */
-const DEFAULT_GEMINI_MODELS = ['gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-3.6-flash', 'gemini-3.5-flash'];
+const DEFAULT_GEMINI_MODELS = ['gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3-flash-preview'];
 
 const MODEL_ID_RE = /^[a-z0-9][a-z0-9.-]*$/i;
 
@@ -34,8 +34,10 @@ export const config = {
     get models() {
       return parseGeminiModels(process.env.GEMINI_MODELS ?? process.env.GEMINI_MODEL);
     },
-    // A request that hasn't answered by then counts as busy and moves to the next model.
-    timeoutMs: Number(process.env.GEMINI_TIMEOUT_MS ?? 120_000),
+    // A request that hasn't answered by then counts as busy and moves to the next model. Reading a
+    // PDF takes longer than drafting a letter from a few findings, so letters get a shorter limit.
+    timeoutMs: Number(process.env.GEMINI_TIMEOUT_MS ?? 90_000),
+    letterTimeoutMs: Number(process.env.GEMINI_LETTER_TIMEOUT_MS ?? 40_000),
   },
   aws: {
     region: process.env.AWS_REGION ?? 'us-east-1',

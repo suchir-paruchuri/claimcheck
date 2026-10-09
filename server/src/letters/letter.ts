@@ -21,7 +21,10 @@ const AMOUNT_RE = /\$\s?(\d{1,3}(?:,\d{3})*(?:\.\d{2})?|\d+(?:\.\d{2})?)/g;
 
 /** Every dollar amount a finding legitimately refers to. */
 function allowedAmounts(f: Finding): Set<string> {
-  const values = [f.amount, ...Object.values(f.evidence).filter((v): v is number => typeof v === 'number')];
+  const evidence = Object.values(f.evidence).filter((v): v is number => typeof v === 'number');
+  // A pricing concern asks the provider to explain or reduce a charge, so the letter quotes the
+  // charge and the Medicare rate but not the difference, which would read as a demand to remove it.
+  const values = f.category === 'pricing_concern' ? evidence : [f.amount, ...evidence];
   return new Set(values.map((v) => v.toFixed(2)));
 }
 
@@ -58,7 +61,10 @@ export function validateLetterSections(raw: unknown, findings: Finding[]): Lette
     const allowed = allowedAmounts(finding);
     for (const m of s.explanation.matchAll(AMOUNT_RE)) {
       const value = Number(m[1].replace(/,/g, '')).toFixed(2);
-      if (!allowed.has(value)) errors.push(`Finding "${s.findingId}" mentions $${value}, which is not in the audit data.`);
+      if (allowed.has(value)) continue;
+      if (finding.category === 'pricing_concern' && value === finding.amount.toFixed(2))
+        errors.push(`Finding "${s.findingId}" states $${value} as an amount to dispute. For a pricing concern, give only the charge and the Medicare rate and ask for an explanation or reduction.`);
+      else errors.push(`Finding "${s.findingId}" mentions $${value}, which is not in the audit data.`);
     }
   }
   for (const f of findings) if (!seen.has(f.id)) errors.push(`Finding "${f.id}" is missing from the letter.`);

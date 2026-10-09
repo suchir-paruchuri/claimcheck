@@ -40,23 +40,36 @@ function isPermanent(err: unknown): boolean {
  */
 function withRetries(name: JobName, handler: (billId: string, data: BillJobData) => Promise<void>) {
   return async (job: Job<BillJobData>) => {
-    const { billId, attempt = 1 } = job.attrs.data;
+    const { billId, attempt = 1, eobId } = job.attrs.data;
+    // Shows the patient when the next automatic attempt happens while Gemini is busy.
+    const setRetryAt = (at: Date | undefined) => {
+      const op = at ? '$set' : '$unset';
+      if (name === JOBS.extractEob) return Bill.updateOne({ _id: billId, 'eobs.id': eobId }, { [op]: { 'eobs.$.retryAt': at ?? '' } });
+      if (name === JOBS.extract || name === JOBS.letter) {
+        return Bill.updateOne({ _id: billId }, { [op]: { [`retryAt.${name === JOBS.letter ? 'letter' : 'extract'}`]: at ?? '' } });
+      }
+    };
     try {
       await handler(billId, job.attrs.data);
+      if (attempt > 1) await setRetryAt(undefined);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       if (err instanceof AllModelsBusyError) console.error(`[${name}] every model failed:`, err.attempts);
       console.error(`[${name}] bill ${billId} attempt ${attempt} failed: ${message}`);
-      const delays = err instanceof AllModelsBusyError ? BUSY_RETRY_DELAYS_MS : RETRY_DELAYS_MS.slice(0, MAX_ATTEMPTS - 1);
+      const busy = err instanceof AllModelsBusyError;
+      const delays = busy ? BUSY_RETRY_DELAYS_MS : RETRY_DELAYS_MS.slice(0, MAX_ATTEMPTS - 1);
       if (!isPermanent(err) && attempt <= delays.length) {
-        await getAgenda().schedule<BillJobData>(new Date(Date.now() + delays[attempt - 1]), name, { ...job.attrs.data, attempt: attempt + 1 });
+        const at = new Date(Date.now() + delays[attempt - 1]);
+        await getAgenda().schedule<BillJobData>(at, name, { ...job.attrs.data, attempt: attempt + 1 });
+        if (busy) await setRetryAt(at);
         return;
       }
+      await setRetryAt(undefined);
       if (name === JOBS.letter) await Bill.updateOne({ _id: billId }, { 'letter.status': 'failed', error: message });
       else if (name === JOBS.extractEob) {
         // A failed insurance statement shouldn't fail the bill itself.
         await Bill.updateOne(
-          { _id: billId, 'eobs.id': job.attrs.data.eobId },
+          { _id: billId, 'eobs.id': eobId },
           { $set: { 'eobs.$.status': 'failed', 'eobs.$.error': `We couldn't read this statement: ${message}` } },
         );
       } else {

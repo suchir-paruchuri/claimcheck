@@ -85,6 +85,19 @@ describe('letter validation', () => {
     expect(r.errors[0]).toMatch(/\$1400.00/);
   });
 
+  it('rejects stating the amount above the Medicare rate as a sum to remove for a pricing concern', () => {
+    const pricing = findings.find((f) => f.category === 'pricing_concern')!;
+    const r = validateLetterSections(
+      {
+        sections: good.sections.map((s) =>
+          s.findingId === pricing.id ? { ...s, explanation: `${s.explanation} I am disputing the difference of $${pricing.amount.toFixed(2)}.` } : s,
+        ),
+      },
+      findings,
+    );
+    expect(r.ok).toBe(false);
+  });
+
   it('rejects internal IDs that would mean nothing to a billing office', () => {
     const r = validateLetterSections(
       { sections: [good.sections[0], { ...good.sections[1], explanation: `${good.sections[1].explanation} See statement eob-1e5b052b.` }] },
