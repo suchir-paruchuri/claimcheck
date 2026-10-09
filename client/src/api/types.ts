@@ -102,7 +102,7 @@ export interface Bill extends BillSummary {
   checksRun?: string[];
   checksSkipped?: { checkId: string; reason: string }[];
   benchmarkMultiplier?: number;
-  letter?: { status: 'none' | 'drafting' | 'ready' | 'failed'; text?: string; generatedAt?: string };
+  letter?: { status: 'none' | 'drafting' | 'ready' | 'failed'; text?: string; generatedAt?: string; stale?: boolean };
   error?: string;
 }
 

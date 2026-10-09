@@ -48,6 +48,12 @@ export default function LetterPanel({ bill, onChange }: { bill: Bill; onChange: 
       )}
       {status === 'ready' && (
         <>
+          {bill.letter?.stale && (
+            <div className="notice notice-concern" role="status">
+              <p>Your results changed after this letter was drafted, so it may be missing findings. Redrafting replaces any edits you made.</p>
+              <button className="primary" onClick={draft} disabled={busy}>Redraft my letter</button>
+            </div>
+          )}
           <p className="hint">Edit anything you like before sending it. Keep a copy, and send it to the billing office in writing.</p>
           <textarea
             className="letter-text"

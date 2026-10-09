@@ -229,6 +229,8 @@ export async function analyzeBill(billId: string) {
     benchmarkMultiplier: config.benchmarkMultiplier,
     status: 'complete',
     'timings.analysisMs': Date.now() - started,
+    // A letter drafted from the old findings no longer matches them.
+    ...(bill.letter?.status === 'ready' && { 'letter.stale': true }),
   });
   await bill.save();
 }

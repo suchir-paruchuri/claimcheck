@@ -43,7 +43,14 @@ function sampleLines(): LineItem[] {
 function auditFindings(b: Bill): Finding[] {
   const notReceived = b.lineItems.filter((l) => l.notReceived);
   const skip = new Set(notReceived.map((l) => l.id));
-  const findings = (demoAudit.findings as unknown as Finding[]).filter((f) => !(f.checkId === 'pricing' && skip.has(f.lineItemIds[0])));
+  const codeOf = new Map(b.lineItems.map((l) => [l.id, l.code]));
+  const findings = (demoAudit.findings as unknown as Finding[]).filter((f) => {
+    if (f.checkId === 'pricing' && skip.has(f.lineItemIds[0])) return false;
+    // The sample findings are for the codes on the bill. If the visitor leaves a misread code
+    // uncorrected (81008 instead of 81003), that line's findings no longer apply.
+    const code = (f.evidence as { code?: string }).code;
+    return !code || f.lineItemIds.every((id) => codeOf.get(id) === code);
+  });
   notReceived.forEach((li, i) =>
     findings.push({
       id: `not_received-${i + 1}`, checkId: 'not_received', category: 'billing_error', lineItemIds: [li.id], amount: li.charge,
@@ -56,6 +63,7 @@ function auditFindings(b: Bill): Finding[] {
 
 /** Line findings plus, once a statement has been read, the insurance comparison (also from the real engine). */
 function analyze(b: Bill) {
+  if (b.letter?.status === 'ready') b.letter.stale = true;
   const hasEob = !!b.eobs?.some((e) => e.status === 'ready');
   b.findings = [...auditFindings(b), ...(hasEob ? (demoEob.findings as unknown as Finding[]) : [])];
   b.reconciliation = hasEob ? (demoEob.reconciliation as Bill['reconciliation']) : undefined;

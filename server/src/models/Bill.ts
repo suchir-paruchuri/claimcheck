@@ -117,7 +117,13 @@ const billSchema = new Schema(
     benchmarkMultiplier: Number,
     totals: { billed: Number, billingErrors: Number, pricingConcerns: Number, insuranceIssues: Number },
 
-    letter: { text: String, generatedAt: Date, status: { type: String, enum: ['none', 'drafting', 'ready', 'failed'], default: 'none' } },
+    letter: {
+      text: String,
+      generatedAt: Date,
+      status: { type: String, enum: ['none', 'drafting', 'ready', 'failed'], default: 'none' },
+      // Set when the findings change after the letter was drafted (an insurance statement added, say).
+      stale: Boolean,
+    },
     error: String,
     timings: { extractionMs: Number, analysisMs: Number, letterMs: Number },
     // Which Gemini model handled each step (the first in GEMINI_MODELS that answered).
