@@ -1,3 +1,4 @@
+import os from 'node:os';
 import mongoose from 'mongoose';
 import type { MongoMemoryServer } from 'mongodb-memory-server';
 
@@ -22,6 +23,10 @@ export async function connectTestDb() {
   await mongoose.connect(uri, {
     dbName: `claimcheck_test_${process.env.JEST_WORKER_ID ?? '1'}`,
     serverSelectionTimeoutMS: 5000, // fail in seconds, not minutes, if MongoDB is unreachable
+    // The MongoDB driver loads `os` with a dynamic import(), which Jest's CommonJS runtime rejects.
+    // Without it, the driver's handshake metadata comes out empty and the server refuses the
+    // connection ("Missing required sub-document 'driver'"). Passing the module in avoids that.
+    runtimeAdapters: { os },
   });
 }
 
