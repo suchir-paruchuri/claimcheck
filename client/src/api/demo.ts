@@ -4,6 +4,7 @@
 import type { Api, Bill, Finding, LineItem, User } from './types';
 import demoAudit from './demoAudit.json';
 import demoEob from './demoEob.json';
+import { DEMO_SECTIONS, fallbackSection } from './demoLetter';
 
 const user: User = { id: 'demo', email: 'demo@claimcheck.app', name: 'Jordan Rivera', createdAt: new Date().toISOString() };
 const DEMO_PASSWORD = 'demo-password';
@@ -67,6 +68,28 @@ function analyze(b: Bill) {
     pricingConcerns: sum('pricing_concern'),
     insuranceIssues: sum('insurance_issue'),
   };
+}
+
+/** Same template as the server's buildLetter, filled with the demo's validated sections. */
+function demoLetterText(b: Bill): string {
+  const findings = b.findings.filter((f) => f.category !== 'info');
+  const text = (f: Finding) => DEMO_SECTIONS[f.id] ?? fallbackSection(f);
+  const lines = [
+    new Date().toLocaleDateString('en-US', { dateStyle: 'long' }), '',
+    `To the billing department of ${b.providerName}:`, '',
+    `I am writing to dispute charges on my itemized bill (account ${b.accountNumber}). I reviewed each line item and identified the following issues.`,
+  ];
+  const groups: [Finding['category'], string][] = [
+    ['billing_error', 'Billing errors to correct:'],
+    ['pricing_concern', 'Charges I am asking you to justify or reduce:'],
+    ['insurance_issue', 'Charges to reconcile with my insurance:'],
+  ];
+  for (const [category, heading] of groups) {
+    const group = findings.filter((f) => f.category === category);
+    if (group.length) lines.push('', heading, ...group.map((f, i) => `${i + 1}. ${text(f)}`));
+  }
+  lines.push('', 'Please send a corrected itemized bill, and place my account on hold while these items are reviewed.', '', 'Sincerely,', user.name);
+  return lines.join('\n');
 }
 
 function advance(id: string, status: Bill['status'], ms: number, then?: (b: Bill) => void) {
@@ -161,25 +184,7 @@ export const demoApi: Api = {
     const b = bills.get(id)!;
     b.letter = { status: 'drafting' };
     setTimeout(() => {
-      const errors = b.findings.filter((f) => f.category === 'billing_error');
-      const pricing = b.findings.filter((f) => f.category === 'pricing_concern');
-      const insurance = b.findings.filter((f) => f.category === 'insurance_issue');
-      b.letter = {
-        status: 'ready', generatedAt: new Date().toISOString(),
-        text: [
-          new Date().toLocaleDateString('en-US', { dateStyle: 'long' }), '',
-          `To the billing department of ${b.providerName}:`, '',
-          `I am writing to dispute charges on my itemized bill (account ${b.accountNumber}). I reviewed each line item and identified the following issues.`,
-          '', 'Billing errors to correct:',
-          ...errors.map((f, i) => `${i + 1}. ${f.message} Please correct or remove this charge.`),
-          '', 'Charges I am asking you to justify or reduce:',
-          ...pricing.map((f, i) => `${i + 1}. ${f.message} Please explain this charge or reduce it.`),
-          ...(insurance.length
-            ? ['', 'Charges to reconcile with my insurance:', ...insurance.map((f, i) => `${i + 1}. ${f.message} Please confirm this was submitted to my insurer, or correct it, before billing me.`)]
-            : []),
-          '', 'Please send a corrected itemized bill, and place my account on hold while these items are reviewed.', '', 'Sincerely,', user.name,
-        ].join('\n'),
-      };
+      b.letter = { status: 'ready', generatedAt: new Date().toISOString(), text: demoLetterText(b) };
     }, 2200);
   },
   async saveLetter(id, text) { const b = bills.get(id)!; b.letter = { ...b.letter!, text }; },

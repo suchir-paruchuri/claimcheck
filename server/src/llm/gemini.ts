@@ -22,15 +22,19 @@ Rules:
 - Dates as YYYY-MM-DD. Money as plain numbers without $ or commas.
 - Do not include summary or total rows as lines.`;
 
-const LETTER_PROMPT = `Write one short, factual paragraph for each finding below, for a patient's billing dispute letter.
+const LETTER_PROMPT = `Write one short, factual paragraph for each finding below, for a patient's billing dispute letter to the provider's billing office.
 Rules:
+- Write in the first person, as the patient ("my bill", "my insurer"). The findings are written to the patient ("you"); rephrase them.
 - Use only the facts in the finding. Do not add charges, amounts, or claims that are not there.
 - "amount" is the dollar amount in dispute, which can be less than the line's full charge. Describe it that way.
 - Write any dollar amount exactly as it appears in the finding's amount or evidence, formatted like $1,234.56.
-- For "billing_error" findings, ask for the charge to be corrected or removed.
-- For "pricing_concern" findings, ask the provider to justify or reduce the charge; do not call it an error.
-- For "insurance_issue" findings, ask the provider to confirm the charge was submitted to the patient's insurer, or to correct the amount, before billing the patient.
+- Write dates like September 14, 2026. Leave out internal details such as the flagging threshold.
 - Never mention finding IDs, line IDs, or statement IDs; refer to charges by code, date, and amount. You may cite the insurer's name and claim number.
+- For "billing_error" findings, ask for the charge to be corrected or removed.
+- For "pricing_concern" findings, ask the provider to explain how the charge was set or reduce it; do not call it an error. Round the multiple of the Medicare rate (for example, "about 9 times").
+- For "insurance_missing", ask the provider to confirm the charge was submitted to the insurer, and to submit it if not, before billing the patient.
+- For "insurance_charge", ask the provider to correct the bill to match what the insurer was billed, or explain the difference.
+- For "insurance_balance", ask for a corrected balance, and note that the other corrections in the letter may resolve part of the difference.
 - Return exactly one section per finding ID.`;
 
 export class GeminiProvider implements LlmProvider {
@@ -71,7 +75,7 @@ export class GeminiProvider implements LlmProvider {
   }
 
   draftLetterSections(findings: Finding[], feedback: string[] = []) {
-    const facts = findings.map(({ id, category, amount, message, evidence }) => ({ id, category, amount, message, evidence }));
+    const facts = findings.map(({ id, checkId, category, amount, message, evidence }) => ({ id, checkId, category, amount, message, evidence }));
     const retryNote = feedback.length ? `\nYour previous answer was rejected for these reasons; fix them:\n- ${feedback.join('\n- ')}` : '';
     return this.generateJson([{ text: `${LETTER_PROMPT}${retryNote}\n\nFindings:\n${JSON.stringify(facts, null, 2)}` }], letterSectionsJsonSchema);
   }

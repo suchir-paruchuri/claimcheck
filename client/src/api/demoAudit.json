@@ -41,7 +41,7 @@
         "li-6"
       ],
       "amount": 25,
-      "message": "Code 36415 is billed for 3 units on 2026-09-14; the CMS limit is 2 per day.",
+      "message": "Code 36415 is billed for 3 units on 2026-09-14; the CMS limit is 2 per day. The 1 extra unit(s) account for $25.00.",
       "evidence": {
         "rule": "Medically Unlikely Edit",
         "code": "36415",

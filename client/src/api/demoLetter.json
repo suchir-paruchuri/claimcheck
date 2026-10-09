@@ -1,0 +1,13 @@
+{
+  "duplicates-1": "Code 85025 (CBC with automated differential) is billed twice on September 14, 2026, with identical units and modifiers. Please remove the repeated $64.00 charge.",
+  "unbundling-1": "Code 82947 (glucose test) is billed separately for $48.00 on September 14, 2026. Under Medicare’s National Correct Coding Initiative edits, this test is included in code 80053 (comprehensive metabolic panel), billed the same day, and no modifier indicates a separate, distinct service. Please remove the $48.00 charge.",
+  "unit_limits-1": "Code 36415 (blood draw) is billed for 3 units on September 14, 2026, but Medicare’s limit for this service is 2 per day. Please remove the extra unit, which accounts for $25.00.",
+  "insurance_balance-1": "This bill asks me to pay $612.00. According to my insurer’s Explanation of Benefits, I owe $75.00 for the services it covers, plus at most $145.00 for the one charge it does not list, for a total of $220.00. My balance is therefore $392.00 higher than it should be. Some of this difference may be resolved by the other corrections in this letter; please send a corrected balance once they are made.",
+  "pricing-1": "Code 99214 (office visit, established patient) is billed at $410.00, about three times the Medicare rate of $135.61 for this service. Please explain how this charge was set, or reduce it.",
+  "pricing-2": "Code 80053 (comprehensive metabolic panel) is billed at $186.00, about 18 times the Medicare rate of $10.56. Please explain how this charge was set, or reduce it.",
+  "pricing-4": "Code 85025 (CBC with automated differential) is billed at $64.00, about 8 times the Medicare rate of $7.77. Please explain how this charge was set, or reduce it.",
+  "pricing-6": "Code 81003 (urinalysis) is billed at $39.00, about 17 times the Medicare rate of $2.25. Please explain how this charge was set, or reduce it.",
+  "pricing-7": "Code 93000 (electrocardiogram) is billed at $145.00, about 9 times the Medicare rate of $15.36. Please explain how this charge was set, or reduce it.",
+  "insurance_missing-1": "Code 93000 (electrocardiogram), billed at $145.00 on September 14, 2026, does not appear on my Explanation of Benefits from Peachtree Health Plan. Please confirm whether this charge was submitted to my insurer, and submit it if it was not, before billing me for it.",
+  "insurance_charge-1": "Code 99214 (office visit) is billed to me at $410.00, but Peachtree Health Plan’s statement for claim PHP-2026-0918-4471 shows that $380.00 was billed to my insurer for the same visit. Please correct my bill to match, or explain the $30.00 difference."
+}
